@@ -1,5 +1,5 @@
 [package]
-name = "wasmtest"
+name = "water"
 version = "0.1.0"
 authors = ["Raminder Singh <romi_ssk@yahoo.co.in>"]
 edition = "2018"

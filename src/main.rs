@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use wasmtest::{ParseError, Parser, Section};
+use water::{ParseError, Parser, Section};
 
 #[derive(Debug)]
 enum MyError {
