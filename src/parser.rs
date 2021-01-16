@@ -1,4 +1,5 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
+use crate::ParseError::{InnerError, UnneededBytes};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Section {
@@ -7,13 +8,14 @@ pub enum Section {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct ParseError {
-    inner: BinaryReaderError
+pub enum ParseError {
+    UnneededBytes,
+    InnerError(BinaryReaderError),
 }
 
 impl From<BinaryReaderError> for ParseError {
     fn from(e: BinaryReaderError) -> Self {
-        ParseError { inner: e }
+        InnerError(e)
     }
 }
 
@@ -35,52 +37,56 @@ impl Parser {
 
     pub fn parse(&mut self, buffer: &[u8]) -> Result<(usize, Section), ParseError> {
         let mut reader = BinaryReader::new(buffer);
-        let result = match self.location {
+        match self.location {
             ParserLocation::Header => {
                 let (consumed, version) = reader.read_file_header()?;
                 self.location = ParserLocation::End;
-                (consumed, Section::Header(version))
+                Ok((consumed, Section::Header(version)))
             },
             ParserLocation::End => {
-                (0, Section::Done)
+                if buffer.len() > 0 {
+                    Err(UnneededBytes)
+                } else {
+                    Ok((0, Section::Done))
+                }
             }
-        };
-        Ok(result)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Parser, ParseError};
+    use crate::Parser;
     use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion};
     use crate::Section::Header;
+    use crate::ParseError::{InnerError, UnneededBytes};
 
     #[test]
     fn parse_header_from_empty() {
         let mut parser = Parser::new();
         let result = parser.parse(&[]);
-        assert_eq!(Err(ParseError { inner: UnexpectedEof }), result);
+        assert_eq!(Err(InnerError(UnexpectedEof)), result);
     }
 
     #[test]
     fn parse_header_bad_magic_no() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0as");
-        assert_eq!(Err(ParseError { inner: UnexpectedEof }), result);
+        assert_eq!(Err(InnerError(UnexpectedEof)), result);
     }
 
     #[test]
     fn parse_header_only_magic_no() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0asm");
-        assert_eq!(Err(ParseError { inner: UnexpectedEof }), result);
+        assert_eq!(Err(InnerError(UnexpectedEof)), result);
     }
 
     #[test]
     fn parse_header_bad_version() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0asm\x02\0\0\0");
-        assert_eq!(Err(ParseError { inner: BadVersion }), result);
+        assert_eq!(Err(InnerError(BadVersion)), result);
     }
 
     #[test]
@@ -88,5 +94,13 @@ mod tests {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0asm\x01\0\0\0");
         assert_eq!(Ok((8, Header(1))), result);
+    }
+
+    #[test]
+    fn unneeded_bytes_test() {
+        let mut parser = Parser::new();
+        let _ = parser.parse(b"\0asm\x01\0\0\0");
+        let result = parser.parse(b"MoreBytes");
+        assert_eq!(Err(UnneededBytes), result);
     }
 }
