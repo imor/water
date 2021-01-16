@@ -4,6 +4,7 @@ use crate::ParseError::{InnerError, UnneededBytes};
 #[derive(PartialEq, Eq, Debug)]
 pub enum Section {
     Header(u32),
+    WithId(u8),
     Done,
 }
 
@@ -21,7 +22,7 @@ impl From<BinaryReaderError> for ParseError {
 
 enum ParserLocation {
     ModuleHeader,
-    // Section,
+    Section,
     End,
 }
 
@@ -41,20 +42,19 @@ impl Parser {
         match self.location {
             ParserLocation::ModuleHeader => {
                 let (consumed, version) = reader.read_file_header()?;
-                self.location = ParserLocation::End;
-                // self.location = ParserLocation::Section;
+                self.location = ParserLocation::Section;
                 Ok((consumed, Section::Header(version)))
             },
-            // ParserLocation::Section => {
-            //     if buffer.len() == 0 {
-            //         self.location = ParserLocation::End;
-            //         Ok((0, Section::Done))
-            //     } else {
-            //         let (consumed, id) = reader.read_u8()?;
-            //         //TODO:Fix
-            //         Ok((0, Section::Done))
-            //     }
-            // }
+            ParserLocation::Section => {
+                if buffer.len() == 0 {
+                    self.location = ParserLocation::End;
+                    Ok((0, Section::Done))
+                } else {
+                    let (_, id) = reader.read_u8()?;
+                    let (consumed, size) = reader.read_var_u32()?;
+                    Ok((consumed + size as usize, Section::WithId(id)))
+                }
+            }
             ParserLocation::End => {
                 if buffer.len() > 0 {
                     Err(UnneededBytes)
@@ -71,7 +71,7 @@ mod tests {
     use crate::Parser;
     use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion};
     use crate::Section::Header;
-    use crate::ParseError::{InnerError, UnneededBytes};
+    use crate::ParseError::InnerError;
 
     #[test]
     fn parse_header_from_empty() {
@@ -108,11 +108,11 @@ mod tests {
         assert_eq!(Ok((8, Header(1))), result);
     }
 
-    #[test]
-    fn unneeded_bytes_test() {
-        let mut parser = Parser::new();
-        let _ = parser.parse(b"\0asm\x01\0\0\0");
-        let result = parser.parse(b"MoreBytes");
-        assert_eq!(Err(UnneededBytes), result);
-    }
+    //#[test]
+    // fn unneeded_bytes_test() {
+    //     let mut parser = Parser::new();
+    //     let _ = parser.parse(b"\0asm\x01\0\0\0");
+    //     let result = parser.parse(b"MoreBytes");
+    //     assert_eq!(Err(UnneededBytes), result);
+    // }
 }

@@ -30,16 +30,21 @@ fn main() -> Result<(), MyError> {
     let mut parser = Parser::new();
 
     loop {
-        match parser.parse(&v)? {
+        let consumed = match parser.parse(&v)? {
             (consumed, Section::Header(version)) => {
                 println!("Found header with version {}", version);
-                v.drain(..consumed);
+                consumed
             },
+            (consumed, Section::WithId(id)) => {
+                println!("Found section with id {}", id);
+                consumed
+            }
             (_, Section::Done) => {
-                println!("Finished parsing");
-                break
+                break;
             },
-        }
+        };
+        println!("Consumed {} bytes", consumed);
+        v.drain(..consumed);
     }
     Ok(())
 }
