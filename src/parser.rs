@@ -36,9 +36,9 @@ impl Parser {
         let mut reader = BinaryReader::new(buffer);
         let result = match self.location {
             ParserLocation::Header => {
-                let version = reader.read_file_header()?;
+                let (consumed, version) = reader.read_file_header()?;
                 self.location = ParserLocation::End;
-                (reader.position, Section::Header(version))
+                (consumed, Section::Header(version))
             },
             ParserLocation::End => {
                 (0, Section::Done)

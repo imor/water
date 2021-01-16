@@ -13,7 +13,7 @@ pub type Result<T, E = BinaryReaderError> = result::Result<T, E>;
 
 pub struct BinaryReader<'a> {
     buffer: &'a [u8],
-    pub(crate) position: usize,
+    position: usize,
 }
 
 impl<'a> BinaryReader<'a> {
@@ -49,12 +49,12 @@ impl<'a> BinaryReader<'a> {
         Ok(word)
     }
 
-    pub fn read_file_header(&mut self) -> Result<u32> {
+    pub fn read_file_header(&mut self) -> Result<(usize, u32)> {
         let magic_number = self.read_bytes(4)?;
         if magic_number == WASM_MAGIC_NUMBER {
             let version = self.read_u32()?;
             if version == WASM_SUPPORTED_VERSION {
-                Ok(version)
+                Ok((self.position, version))
             } else {
                 Err(BinaryReaderError { message: "Bad version number".to_string() })
             }
