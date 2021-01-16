@@ -1,18 +1,19 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum Section {
     Header(u32),
     Done,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct ParseError {
-    message: String,
+    inner: BinaryReaderError
 }
 
 impl From<BinaryReaderError> for ParseError {
     fn from(e: BinaryReaderError) -> Self {
-        ParseError { message: e.message }
+        ParseError { inner: e }
     }
 }
 
@@ -45,5 +46,47 @@ impl Parser {
             }
         };
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Parser, ParseError};
+    use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion};
+    use crate::Section::Header;
+
+    #[test]
+    fn parse_header_from_empty() {
+        let mut parser = Parser::new();
+        let result = parser.parse(&[]);
+        assert_eq!(Err(ParseError { inner: UnexpectedEof }), result);
+    }
+
+    #[test]
+    fn parse_header_bad_magic_no() {
+        let mut parser = Parser::new();
+        let result = parser.parse(b"\0as");
+        assert_eq!(Err(ParseError { inner: UnexpectedEof }), result);
+    }
+
+    #[test]
+    fn parse_header_only_magic_no() {
+        let mut parser = Parser::new();
+        let result = parser.parse(b"\0asm");
+        assert_eq!(Err(ParseError { inner: UnexpectedEof }), result);
+    }
+
+    #[test]
+    fn parse_header_bad_version() {
+        let mut parser = Parser::new();
+        let result = parser.parse(b"\0asm\x02\0\0\0");
+        assert_eq!(Err(ParseError { inner: BadVersion }), result);
+    }
+
+    #[test]
+    fn parse_good_header() {
+        let mut parser = Parser::new();
+        let result = parser.parse(b"\0asm\x01\0\0\0");
+        assert_eq!(Ok((8, Header(1))), result);
     }
 }

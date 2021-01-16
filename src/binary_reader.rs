@@ -1,12 +1,15 @@
 use std::result;
 use std::convert::TryInto;
+use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
 
-#[derive(Debug)]
-pub struct BinaryReaderError {
-    pub(crate) message: String,
+#[derive(PartialEq, Eq, Debug)]
+pub enum BinaryReaderError {
+    UnexpectedEof,
+    BadVersion,
+    BadMagicNumber,
 }
 
 pub type Result<T, E = BinaryReaderError> = result::Result<T, E>;
@@ -28,7 +31,7 @@ impl<'a> BinaryReader<'a> {
         if self.position + n <= self.buffer.len() {
             Ok(())
         } else {
-            Err(BinaryReaderError { message: "Unexpected EOF".to_string() })
+            Err(UnexpectedEof)
         }
     }
 
@@ -56,10 +59,10 @@ impl<'a> BinaryReader<'a> {
             if version == WASM_SUPPORTED_VERSION {
                 Ok((self.position, version))
             } else {
-                Err(BinaryReaderError { message: "Bad version number".to_string() })
+                Err(BadVersion)
             }
         } else {
-            Err(BinaryReaderError { message: "Bad magic number".to_string() })
+            Err(BadMagicNumber)
         }
     }
 }
