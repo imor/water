@@ -20,7 +20,8 @@ impl From<BinaryReaderError> for ParseError {
 }
 
 enum ParserLocation {
-    Header,
+    ModuleHeader,
+    // Section,
     End,
 }
 
@@ -31,18 +32,29 @@ pub struct Parser {
 impl Parser {
     pub fn new() -> Parser {
         Parser {
-            location: ParserLocation::Header,
+            location: ParserLocation::ModuleHeader,
         }
     }
 
     pub fn parse(&mut self, buffer: &[u8]) -> Result<(usize, Section), ParseError> {
         let mut reader = BinaryReader::new(buffer);
         match self.location {
-            ParserLocation::Header => {
+            ParserLocation::ModuleHeader => {
                 let (consumed, version) = reader.read_file_header()?;
                 self.location = ParserLocation::End;
+                // self.location = ParserLocation::Section;
                 Ok((consumed, Section::Header(version)))
             },
+            // ParserLocation::Section => {
+            //     if buffer.len() == 0 {
+            //         self.location = ParserLocation::End;
+            //         Ok((0, Section::Done))
+            //     } else {
+            //         let (consumed, id) = reader.read_u8()?;
+            //         //TODO:Fix
+            //         Ok((0, Section::Done))
+            //     }
+            // }
             ParserLocation::End => {
                 if buffer.len() > 0 {
                     Err(UnneededBytes)
