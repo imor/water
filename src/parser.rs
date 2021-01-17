@@ -3,8 +3,45 @@ use crate::ParseError::{InnerError, UnneededBytes};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Section {
+    Custom,
+    Type,
+    Import,
+    Function,
+    Table,
+    Memory,
+    Global,
+    Export,
+    Start,
+    Element,
+    Code,
+    Data,
+    Unknown,
+}
+
+impl From<u8> for Section {
+    fn from(val: u8) -> Self {
+        match val {
+            0 => Section::Custom,
+            1 => Section::Type,
+            2 => Section::Import,
+            3 => Section::Function,
+            4 => Section::Table,
+            5 => Section::Memory,
+            6 => Section::Global,
+            7 => Section::Export,
+            8 => Section::Start,
+            9 => Section::Element,
+            10 => Section::Code,
+            11 => Section::Data,
+            _ => Section::Unknown,
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum Chunk {
     Header(u32),
-    WithId(u8),
+    Section(Section),
     Done,
 }
 
@@ -37,29 +74,29 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self, buffer: &[u8]) -> Result<(usize, Section), ParseError> {
+    pub fn parse(&mut self, buffer: &[u8]) -> Result<(usize, Chunk), ParseError> {
         let mut reader = BinaryReader::new(buffer);
         match self.location {
             ParserLocation::ModuleHeader => {
                 let (consumed, version) = reader.read_file_header()?;
                 self.location = ParserLocation::Section;
-                Ok((consumed, Section::Header(version)))
+                Ok((consumed, Chunk::Header(version)))
             },
             ParserLocation::Section => {
                 if buffer.len() == 0 {
                     self.location = ParserLocation::End;
-                    Ok((0, Section::Done))
+                    Ok((0, Chunk::Done))
                 } else {
                     let (_, id) = reader.read_u8()?;
                     let (consumed, size) = reader.read_var_u32()?;
-                    Ok((consumed + size as usize, Section::WithId(id)))
+                    Ok((consumed + size as usize, Chunk::Section(id.into())))
                 }
             }
             ParserLocation::End => {
                 if buffer.len() > 0 {
                     Err(UnneededBytes)
                 } else {
-                    Ok((0, Section::Done))
+                    Ok((0, Chunk::Done))
                 }
             }
         }
@@ -70,7 +107,7 @@ impl Parser {
 mod tests {
     use crate::Parser;
     use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion};
-    use crate::Section::Header;
+    use crate::Chunk::Header;
     use crate::ParseError::InnerError;
 
     #[test]

@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Section};
+use water::{ParseError, Parser, Chunk, Section};
 
 #[derive(Debug)]
 enum MyError {
@@ -31,15 +31,29 @@ fn main() -> Result<(), MyError> {
 
     loop {
         let consumed = match parser.parse(&v)? {
-            (consumed, Section::Header(version)) => {
+            (consumed, Chunk::Header(version)) => {
                 println!("Found header with version {}", version);
                 consumed
             },
-            (consumed, Section::WithId(id)) => {
-                println!("Found section with id {}", id);
+            (consumed, Chunk::Section(section)) => {
+                match section {
+                    Section::Custom => println!("Found custom section."),
+                    Section::Type => println!("Found type section."),
+                    Section::Import => println!("Found import section."),
+                    Section::Function => println!("Found function section."),
+                    Section::Table => println!("Found table section."),
+                    Section::Memory => println!("Found memory section."),
+                    Section::Global => println!("Found global section."),
+                    Section::Export => println!("Found export section."),
+                    Section::Start => println!("Found start section."),
+                    Section::Element => println!("Found element section."),
+                    Section::Code => println!("Found code section."),
+                    Section::Data => println!("Found data section."),
+                    Section::Unknown => println!("Found unknown section."),
+                }
                 consumed
             }
-            (_, Section::Done) => {
+            (_, Chunk::Done) => {
                 break;
             },
         };
