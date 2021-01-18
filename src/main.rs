@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, Section};
+use water::{ParseError, Parser, Chunk, SectionReader};
 
 #[derive(Debug)]
 enum MyError {
@@ -37,19 +37,19 @@ fn main() -> Result<(), MyError> {
             },
             (consumed, Chunk::Section(section)) => {
                 match section {
-                    Section::Custom => println!("Found custom section."),
-                    Section::Type => println!("Found type section."),
-                    Section::Import => println!("Found import section."),
-                    Section::Function => println!("Found function section."),
-                    Section::Table => println!("Found table section."),
-                    Section::Memory => println!("Found memory section."),
-                    Section::Global => println!("Found global section."),
-                    Section::Export => println!("Found export section."),
-                    Section::Start => println!("Found start section."),
-                    Section::Element => println!("Found element section."),
-                    Section::Code => println!("Found code section."),
-                    Section::Data => println!("Found data section."),
-                    Section::Unknown => println!("Found unknown section."),
+                    SectionReader::Custom => println!("Found custom section."),
+                    SectionReader::Type(_reader) => println!("Found type section."),
+                    SectionReader::Import => println!("Found import section."),
+                    SectionReader::Function => println!("Found function section."),
+                    SectionReader::Table => println!("Found table section."),
+                    SectionReader::Memory => println!("Found memory section."),
+                    SectionReader::Global => println!("Found global section."),
+                    SectionReader::Export => println!("Found export section."),
+                    SectionReader::Start => println!("Found start section."),
+                    SectionReader::Element => println!("Found element section."),
+                    SectionReader::Code => println!("Found code section."),
+                    SectionReader::Data => println!("Found data section."),
+                    SectionReader::Unknown => println!("Found unknown section."),
                 }
                 consumed
             }

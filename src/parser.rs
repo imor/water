@@ -1,10 +1,11 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::ParseError::{InnerError, UnneededBytes};
+use crate::readers::TypeSectionReader;
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum Section {
+pub enum SectionReader {
     Custom,
-    Type,
+    Type(TypeSectionReader),
     Import,
     Function,
     Table,
@@ -18,30 +19,30 @@ pub enum Section {
     Unknown,
 }
 
-impl From<u8> for Section {
-    fn from(val: u8) -> Self {
-        match val {
-            0 => Section::Custom,
-            1 => Section::Type,
-            2 => Section::Import,
-            3 => Section::Function,
-            4 => Section::Table,
-            5 => Section::Memory,
-            6 => Section::Global,
-            7 => Section::Export,
-            8 => Section::Start,
-            9 => Section::Element,
-            10 => Section::Code,
-            11 => Section::Data,
-            _ => Section::Unknown,
-        }
-    }
-}
+// impl From<u8> for SectionReader {
+//     fn from(val: u8) -> Self {
+//         match val {
+//             0 => SectionReader::Custom,
+//             1 => SectionReader::Type,
+//             2 => SectionReader::Import,
+//             3 => SectionReader::Function,
+//             4 => SectionReader::Table,
+//             5 => SectionReader::Memory,
+//             6 => SectionReader::Global,
+//             7 => SectionReader::Export,
+//             8 => SectionReader::Start,
+//             9 => SectionReader::Element,
+//             10 => SectionReader::Code,
+//             11 => SectionReader::Data,
+//             _ => SectionReader::Unknown,
+//         }
+//     }
+// }
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Chunk {
     Header(u32),
-    Section(Section),
+    Section(SectionReader),
     Done,
 }
 
@@ -89,7 +90,7 @@ impl Parser {
                 } else {
                     let (_, id) = reader.read_u8()?;
                     let (consumed, size) = reader.read_var_u32()?;
-                    Ok((consumed + size as usize, Chunk::Section(id.into())))
+                    Ok((consumed + size as usize, Chunk::Section(Self::create_section_reader(id))))
                 }
             }
             ParserLocation::End => {
@@ -99,6 +100,13 @@ impl Parser {
                     Ok((0, Chunk::Done))
                 }
             }
+        }
+    }
+
+    fn create_section_reader(id: u8) -> SectionReader {
+        match id {
+            1 => SectionReader::Type(TypeSectionReader{}),
+            _ => SectionReader::Unknown,
         }
     }
 }
