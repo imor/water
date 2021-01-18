@@ -1,9 +1,11 @@
-use std::result;
 use std::convert::TryInto;
 use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32};
+use std::result;
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
+
+pub type Result<T, E = BinaryReaderError> = result::Result<T, E>;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum BinaryReaderError {
@@ -13,11 +15,10 @@ pub enum BinaryReaderError {
     InvalidVaru32,
 }
 
-pub type Result<T, E = BinaryReaderError> = result::Result<T, E>;
-
+#[derive(Eq, PartialEq, Debug)]
 pub struct BinaryReader<'a> {
     buffer: &'a [u8],
-    position: usize,
+    pub(crate) position: usize,
 }
 
 impl<'a> BinaryReader<'a> {
@@ -67,16 +68,16 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn read_u8(&mut self) -> Result<(usize, u8)> {
+    pub fn read_u8(&mut self) -> Result<u8> {
         let bytes = self.read_bytes(1)?;
-        Ok((self.position, bytes[0]))
+        Ok(bytes[0])
     }
 
-    pub fn read_var_u32(&mut self) -> Result<(usize, u32)> {
+    pub fn read_var_u32(&mut self) -> Result<u32> {
         let mut result: u32 = 0;
         let mut shift = 0;
         loop {
-            let (_, byte) = self.read_u8()?;
+            let byte = self.read_u8()?;
             result |= (byte as u32 & 0b0111_1111) << shift;
             // The fifth byte's 4 high bits must be zero
             if shift == 28 && (byte >> (32 - shift)) != 0 {
@@ -87,7 +88,7 @@ impl<'a> BinaryReader<'a> {
                 break;
             }
         }
-        Ok((self.position, result))
+        Ok(result)
     }
 }
 
@@ -100,29 +101,29 @@ mod tests {
     fn read_var_u32() {
         for item in
             [
-                (vec![0b0000_0000], Ok((1usize, 0u32))),
-                (vec![0b0000_0001], Ok((1, 1))),
-                (vec![0b0000_0100], Ok((1, 4))),
-                (vec![0b0111_1111], Ok((1, 127))),
+                (vec![0b0000_0000], Ok(0u32)),
+                (vec![0b0000_0001], Ok(1)),
+                (vec![0b0000_0100], Ok(4)),
+                (vec![0b0111_1111], Ok(127)),
                 (vec![0b1111_1111], Err(UnexpectedEof)),
-                (vec![0b1111_1111, 0b0000_0000], Ok((2, 127))),
-                (vec![0b1111_1111, 0b0000_0001], Ok((2, 255))),
-                (vec![0b1111_1111, 0b0111_1111], Ok((2, 16_383))),
-                (vec![0b1111_1111, 0b1111_1111, 0b0000_0001], Ok((3, 32_767))),
-                (vec![0b1111_1111, 0b1111_1111, 0b0111_1111], Ok((3, 2_097_151))),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Ok((4, 4_194_303))),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0111_1111], Ok((4, 268_435_455))),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Ok((5, 536_870_911))),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_1111], Ok((5, 4_294_967_295))),
+                (vec![0b1111_1111, 0b0000_0000], Ok(127)),
+                (vec![0b1111_1111, 0b0000_0001], Ok(255)),
+                (vec![0b1111_1111, 0b0111_1111], Ok(16_383)),
+                (vec![0b1111_1111, 0b1111_1111, 0b0000_0001], Ok(32_767)),
+                (vec![0b1111_1111, 0b1111_1111, 0b0111_1111], Ok(2_097_151)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Ok(4_194_303)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0111_1111], Ok(268_435_455)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Ok(536_870_911)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_1111], Ok(4_294_967_295)),
                 (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0001_1111], Err(InvalidVaru32)),
                 (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0011_1111], Err(InvalidVaru32)),
                 (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0111_1111], Err(InvalidVaru32)),
                 (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111], Err(InvalidVaru32)),
                 (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Err(InvalidVaru32)),
             ].iter() {
-            let (buffer, expected_result) : &(Vec<u8>, Result<(usize, u32), BinaryReaderError>) = item;
+            let (buffer, expected_result) : &(Vec<u8>, Result<u32, BinaryReaderError>) = item;
             let mut reader = BinaryReader::new(buffer);
-            let actual_result: Result<(usize, u32), BinaryReaderError> = reader.read_var_u32();
+            let actual_result: Result<u32, BinaryReaderError> = reader.read_var_u32();
             assert_eq!(*expected_result, actual_result);
         }
     }

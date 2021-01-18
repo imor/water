@@ -3,9 +3,9 @@ use crate::ParseError::{InnerError, UnneededBytes};
 use crate::readers::TypeSectionReader;
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum SectionReader {
+pub enum SectionReader<'a> {
     Custom,
-    Type(TypeSectionReader),
+    Type(TypeSectionReader<'a>),
     Import,
     Function,
     Table,
@@ -40,9 +40,9 @@ pub enum SectionReader {
 // }
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum Chunk {
+pub enum Chunk<'a> {
     Header(u32),
-    Section(SectionReader),
+    Section(SectionReader<'a>),
     Done,
 }
 
@@ -75,7 +75,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self, buffer: &[u8]) -> Result<(usize, Chunk), ParseError> {
+    pub fn parse<'a>(&mut self, buffer: &'a [u8]) -> Result<(usize, Chunk<'a>), ParseError> {
         let mut reader = BinaryReader::new(buffer);
         match self.location {
             ParserLocation::ModuleHeader => {
@@ -88,9 +88,9 @@ impl Parser {
                     self.location = ParserLocation::End;
                     Ok((0, Chunk::Done))
                 } else {
-                    let (_, id) = reader.read_u8()?;
-                    let (consumed, size) = reader.read_var_u32()?;
-                    Ok((consumed + size as usize, Chunk::Section(Self::create_section_reader(id))))
+                    let id = reader.read_u8()?;
+                    let size = reader.read_var_u32()?;
+                    Ok((reader.position + size as usize, Chunk::Section(Self::create_section_reader(&buffer[reader.position..], id)?)))
                 }
             }
             ParserLocation::End => {
@@ -103,11 +103,11 @@ impl Parser {
         }
     }
 
-    fn create_section_reader(id: u8) -> SectionReader {
-        match id {
-            1 => SectionReader::Type(TypeSectionReader{}),
+    fn create_section_reader(buffer: &[u8], id: u8) -> Result<SectionReader, ParseError> {
+        Ok(match id {
+            1 => SectionReader::Type(TypeSectionReader::new(buffer)?),
             _ => SectionReader::Unknown,
-        }
+        })
     }
 }
 
