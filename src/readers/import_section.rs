@@ -55,7 +55,10 @@ impl<'a> ImportSectionReader<'a> {
                 let memory_type = self.reader.read_memory_type()?;
                 Ok(ImportDesc::Memory(memory_type))
             },
-            0x03 => Ok(ImportDesc::Global),
+            0x03 => {
+                let global_type = self.reader.read_global_type()?;
+                Ok(ImportDesc::Global(global_type))
+            },
             _ => Err(ImportReaderError::InvalidImportDescByte)
         }
     }

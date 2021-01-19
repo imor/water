@@ -2,8 +2,6 @@ use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::primitives::{FuncType, ValueType};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::primitives::ValueType::{I32, I64, F32, F64};
-use crate::readers::type_section::TypeReaderError::InvalidValueTypeByte;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct TypeSectionReader<'a> {
@@ -15,7 +13,6 @@ pub struct TypeSectionReader<'a> {
 pub enum TypeReaderError {
     BinaryReaderError(BinaryReaderError),
     InvalidLeadingByte,
-    InvalidValueTypeByte,
 }
 
 impl From<BinaryReaderError> for TypeReaderError {
@@ -55,18 +52,8 @@ impl<'a> TypeSectionReader<'a> {
         let len = self.reader.read_var_u32()?;
         let mut types = Vec::with_capacity(len as usize);
         for _ in 0..len {
-            types.push(self.read_type()?);
+            types.push(self.reader.read_value_type()?);
         }
         Ok(types.into_boxed_slice())
-    }
-
-    fn read_type(&mut self) -> Result<ValueType> {
-        match self.reader.read_u8()? {
-            0x7F => Ok(I32),
-            0xFE => Ok(I64),
-            0x7D => Ok(F32),
-            0x7C => Ok(F64),
-            _ => Err(InvalidValueTypeByte)
-        }
     }
 }

@@ -1,7 +1,8 @@
 use std::convert::TryInto;
-use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32, InvalidElementTypeByte, InvalidLimitsByte};
+use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte};
 use std::{result, str};
-use crate::primitives::{TableType, Limits, MemoryType};
+use crate::primitives::{TableType, Limits, MemoryType, GlobalType, ValueType};
+use crate::primitives::ValueType::{I32, I64, F32, F64};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
@@ -17,6 +18,8 @@ pub enum BinaryReaderError {
     InvalidUtf8,
     InvalidElementTypeByte,
     InvalidLimitsByte,
+    InvalidValueTypeByte,
+    InvalidMutableByte,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -114,6 +117,30 @@ impl<'a> BinaryReader<'a> {
     pub fn read_memory_type(&mut self) -> Result<MemoryType> {
         let limits = self.read_limits()?;
         Ok(MemoryType { limits })
+    }
+
+    pub fn read_global_type(&mut self) -> Result<GlobalType> {
+        let tp = self.read_value_type()?;
+        let mutable = self.read_mutable_byte()?;
+        Ok(GlobalType { var_type: tp, mutable })
+    }
+
+    fn read_mutable_byte(&mut self) -> Result<bool> {
+        match self.read_u8()? {
+            0x00 => Ok(false),
+            0x01 => Ok(true),
+            _ => Err(InvalidMutableByte),
+        }
+    }
+
+    pub(crate) fn read_value_type(&mut self) -> Result<ValueType> {
+        match self.read_u8()? {
+            0x7F => Ok(I32),
+            0xFE => Ok(I64),
+            0x7D => Ok(F32),
+            0x7C => Ok(F64),
+            _ => Err(InvalidValueTypeByte)
+        }
     }
 
     fn read_limits(&mut self) -> Result<Limits> {
