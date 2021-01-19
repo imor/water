@@ -78,7 +78,7 @@ fn main() -> Result<(), MyError> {
                     SectionReader::Element => println!("Found element section."),
                     SectionReader::Code => println!("Found code section."),
                     SectionReader::Data => println!("Found data section."),
-                    SectionReader::Unknown => println!("Found unknown section."),
+                    SectionReader::Unknown(id) => println!("Found unknown section with id {}.", id),
                 }
                 consumed
             }

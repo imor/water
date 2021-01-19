@@ -47,7 +47,10 @@ impl<'a> ImportSectionReader<'a> {
                 let type_index = self.reader.read_var_u32()?;
                 Ok(ImportDesc::Func{ type_index })
             },
-            0x01 => Ok(ImportDesc::Table),
+            0x01 => {
+                let table_type = self.reader.read_table_type()?;
+                Ok(ImportDesc::Table(table_type))
+            },
             0x02 => Ok(ImportDesc::Memory),
             0x03 => Ok(ImportDesc::Global),
             _ => Err(ImportReaderError::InvalidImportDescByte)

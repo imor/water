@@ -15,7 +15,7 @@ pub struct FuncType {
 #[derive(Debug)]
 pub enum ImportDesc {
     Func { type_index: u32},
-    Table,
+    Table(TableType),
     Memory,
     Global,
 }
@@ -25,4 +25,15 @@ pub struct Import<'a> {
     pub(crate) module_name: &'a str,
     pub(crate) name: &'a str,
     pub(crate) import_desc: ImportDesc
+}
+
+#[derive(Debug)]
+pub struct Limits {
+    pub(crate) min: u32,
+    pub(crate) max: Option<u32>,
+}
+
+#[derive(Debug)]
+pub struct TableType {
+    pub(crate) limits: Limits
 }

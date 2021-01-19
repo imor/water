@@ -1,6 +1,7 @@
 use std::convert::TryInto;
-use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32};
+use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32, InvalidElementTypeByte, InvalidLimitsByte};
 use std::{result, str};
+use crate::primitives::{TableType, Limits};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
@@ -14,6 +15,8 @@ pub enum BinaryReaderError {
     BadMagicNumber,
     InvalidVaru32,
     InvalidUtf8,
+    InvalidElementTypeByte,
+    InvalidLimitsByte,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -96,6 +99,32 @@ impl<'a> BinaryReader<'a> {
         let len = self.read_var_u32()? as usize;
         let bytes = self.read_bytes(len)?;
         str::from_utf8(bytes).map_err(|_| BinaryReaderError::InvalidUtf8)
+    }
+
+    pub fn read_table_type(&mut self) -> Result<TableType> {
+        match self.read_u8()? {
+            0x70 => {
+                let limits = self.read_limits()?;
+                Ok(TableType { limits })
+            },
+            _ => Err(InvalidElementTypeByte)
+        }
+    }
+
+    fn read_limits(&mut self) -> Result<Limits> {
+        match self.read_u8()? {
+            0x00 => {
+                let min = self.read_var_u32()?;
+                let max = None;
+                Ok(Limits { min, max })
+            },
+            0x01 => {
+                let min = self.read_var_u32()?;
+                let max = Some(self.read_var_u32()?);
+                Ok(Limits { min, max })
+            },
+            _ => Err(InvalidLimitsByte)
+        }
     }
 }
 

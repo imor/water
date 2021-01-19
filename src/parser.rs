@@ -16,7 +16,7 @@ pub enum SectionReader<'a> {
     Element,
     Code,
     Data,
-    Unknown,
+    Unknown(u8),
 }
 
 // impl From<u8> for SectionReader {
@@ -107,7 +107,7 @@ impl Parser {
         Ok(match id {
             1 => SectionReader::Type(TypeSectionReader::new(buffer)?),
             2 => SectionReader::Import(ImportSectionReader::new(buffer)?),
-            _ => SectionReader::Unknown,
+            id => SectionReader::Unknown(id),
         })
     }
 }
