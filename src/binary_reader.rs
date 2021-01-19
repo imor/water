@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32, InvalidElementTypeByte, InvalidLimitsByte};
 use std::{result, str};
-use crate::primitives::{TableType, Limits};
+use crate::primitives::{TableType, Limits, MemoryType};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
@@ -109,6 +109,11 @@ impl<'a> BinaryReader<'a> {
             },
             _ => Err(InvalidElementTypeByte)
         }
+    }
+
+    pub fn read_memory_type(&mut self) -> Result<MemoryType> {
+        let limits = self.read_limits()?;
+        Ok(MemoryType { limits })
     }
 
     fn read_limits(&mut self) -> Result<Limits> {

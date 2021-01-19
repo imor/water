@@ -51,7 +51,10 @@ impl<'a> ImportSectionReader<'a> {
                 let table_type = self.reader.read_table_type()?;
                 Ok(ImportDesc::Table(table_type))
             },
-            0x02 => Ok(ImportDesc::Memory),
+            0x02 => {
+                let memory_type = self.reader.read_memory_type()?;
+                Ok(ImportDesc::Memory(memory_type))
+            },
             0x03 => Ok(ImportDesc::Global),
             _ => Err(ImportReaderError::InvalidImportDescByte)
         }

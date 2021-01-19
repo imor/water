@@ -16,7 +16,7 @@ pub struct FuncType {
 pub enum ImportDesc {
     Func { type_index: u32},
     Table(TableType),
-    Memory,
+    Memory(MemoryType),
     Global,
 }
 
@@ -35,5 +35,10 @@ pub struct Limits {
 
 #[derive(Debug)]
 pub struct TableType {
+    pub(crate) limits: Limits
+}
+
+#[derive(Debug)]
+pub struct MemoryType {
     pub(crate) limits: Limits
 }
