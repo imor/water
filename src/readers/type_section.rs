@@ -1,8 +1,8 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
-use crate::primitives::{FuncType, Type};
+use crate::primitives::{FuncType, ValueType};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::primitives::Type::{I32, I64, F32, F64};
+use crate::primitives::ValueType::{I32, I64, F32, F64};
 use crate::readers::type_section::TypeReaderError::InvalidValueTypeByte;
 
 #[derive(Eq, PartialEq, Debug)]
@@ -51,7 +51,7 @@ impl<'a> TypeSectionReader<'a> {
         Ok(FuncType { params, results })
     }
 
-    fn read_types_vec(&mut self) -> Result<Box<[Type]>> {
+    fn read_types_vec(&mut self) -> Result<Box<[ValueType]>> {
         let len = self.reader.read_var_u32()?;
         let mut types = Vec::with_capacity(len as usize);
         for _ in 0..len {
@@ -60,7 +60,7 @@ impl<'a> TypeSectionReader<'a> {
         Ok(types.into_boxed_slice())
     }
 
-    fn read_type(&mut self) -> Result<Type> {
+    fn read_type(&mut self) -> Result<ValueType> {
         match self.reader.read_u8()? {
             0x7F => Ok(I32),
             0xFE => Ok(I64),

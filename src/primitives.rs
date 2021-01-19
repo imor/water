@@ -1,5 +1,5 @@
 #[derive(Eq, PartialEq, Debug)]
-pub enum Type {
+pub enum ValueType {
     I32,
     I64,
     F32,
@@ -8,8 +8,8 @@ pub enum Type {
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct FuncType {
-    pub(crate) params: Box<[Type]>,
-    pub(crate) results: Box<[Type]>,
+    pub(crate) params: Box<[ValueType]>,
+    pub(crate) results: Box<[ValueType]>,
 }
 
 #[derive(Debug)]
