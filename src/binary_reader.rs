@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32};
-use std::result;
+use std::{result, str};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
@@ -13,6 +13,7 @@ pub enum BinaryReaderError {
     BadVersion,
     BadMagicNumber,
     InvalidVaru32,
+    InvalidUtf8,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -89,6 +90,12 @@ impl<'a> BinaryReader<'a> {
             }
         }
         Ok(result)
+    }
+
+    pub fn read_string(&mut self) -> Result<&'a str> {
+        let len = self.read_var_u32()? as usize;
+        let bytes = self.read_bytes(len)?;
+        str::from_utf8(bytes).map_err(|_| BinaryReaderError::InvalidUtf8)
     }
 }
 
