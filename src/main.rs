@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError};
 
 #[derive(Debug)]
 enum MyError {
@@ -9,6 +9,7 @@ enum MyError {
     ParseError(ParseError),
     TypeReaderError(TypeReaderError),
     ImportReaderError(ImportReaderError),
+    FunctionReaderError(FunctionReaderError),
 }
 
 impl From<io::Error> for MyError {
@@ -32,6 +33,12 @@ impl From<TypeReaderError> for MyError {
 impl From<ImportReaderError> for MyError {
     fn from(e: ImportReaderError) -> Self {
         MyError::ImportReaderError(e)
+    }
+}
+
+impl From<FunctionReaderError> for MyError {
+    fn from(e: FunctionReaderError) -> Self {
+        MyError::FunctionReaderError(e)
     }
 }
 
@@ -69,7 +76,14 @@ fn main() -> Result<(), MyError> {
                             println!("Found import {:?}", import);
                         }
                     },
-                    SectionReader::Function => println!("Found function section."),
+                    SectionReader::Function(mut reader) => {
+                        println!("Found function section.");
+                        let count = reader.get_count();
+                        for _ in 0..count {
+                            let type_index = reader.read()?;
+                            println!("Found type index {:?}", type_index);
+                        }
+                    },
                     SectionReader::Table => println!("Found table section."),
                     SectionReader::Memory => println!("Found memory section."),
                     SectionReader::Global => println!("Found global section."),

@@ -1,13 +1,13 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::ParseError::{InnerError, UnneededBytes};
-use crate::readers::{TypeSectionReader, ImportSectionReader};
+use crate::readers::{TypeSectionReader, ImportSectionReader, FunctionSectionReader};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum SectionReader<'a> {
     Custom,
     Type(TypeSectionReader<'a>),
     Import(ImportSectionReader<'a>),
-    Function,
+    Function(FunctionSectionReader<'a>),
     Table,
     Memory,
     Global,
@@ -107,6 +107,7 @@ impl Parser {
         Ok(match id {
             1 => SectionReader::Type(TypeSectionReader::new(buffer)?),
             2 => SectionReader::Import(ImportSectionReader::new(buffer)?),
+            3 => SectionReader::Function(FunctionSectionReader::new(buffer)?),
             id => SectionReader::Unknown(id),
         })
     }
