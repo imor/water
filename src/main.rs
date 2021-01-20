@@ -5,40 +5,40 @@ use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportRea
 
 #[derive(Debug)]
 enum MyError {
-    IoError(io::Error),
-    ParseError(ParseError),
-    TypeReaderError(TypeReaderError),
-    ImportReaderError(ImportReaderError),
-    FunctionReaderError(FunctionReaderError),
+    Io(io::Error),
+    Parse(ParseError),
+    TypeReader(TypeReaderError),
+    ImportReader(ImportReaderError),
+    FunctionReader(FunctionReaderError),
 }
 
 impl From<io::Error> for MyError {
     fn from(e: Error) -> Self {
-        MyError::IoError(e)
+        MyError::Io(e)
     }
 }
 
 impl From<ParseError> for MyError {
     fn from(e: ParseError) -> Self {
-        MyError::ParseError(e)
+        MyError::Parse(e)
     }
 }
 
 impl From<TypeReaderError> for MyError {
     fn from(e: TypeReaderError) -> Self {
-        MyError::TypeReaderError(e)
+        MyError::TypeReader(e)
     }
 }
 
 impl From<ImportReaderError> for MyError {
     fn from(e: ImportReaderError) -> Self {
-        MyError::ImportReaderError(e)
+        MyError::ImportReader(e)
     }
 }
 
 impl From<FunctionReaderError> for MyError {
     fn from(e: FunctionReaderError) -> Self {
-        MyError::FunctionReaderError(e)
+        MyError::FunctionReader(e)
     }
 }
 

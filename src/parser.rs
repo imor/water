@@ -84,7 +84,7 @@ impl Parser {
                 Ok((consumed, Chunk::Header(version)))
             },
             ParserLocation::Section => {
-                if buffer.len() == 0 {
+                if buffer.is_empty() {
                     self.location = ParserLocation::End;
                     Ok((0, Chunk::Done))
                 } else {
@@ -94,7 +94,7 @@ impl Parser {
                 }
             }
             ParserLocation::End => {
-                if buffer.len() > 0 {
+                if !buffer.is_empty() {
                     Err(UnneededBytes)
                 } else {
                     Ok((0, Chunk::Done))
@@ -110,6 +110,12 @@ impl Parser {
             3 => SectionReader::Function(FunctionSectionReader::new(buffer)?),
             id => SectionReader::Unknown(id),
         })
+    }
+}
+
+impl Default for Parser {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
