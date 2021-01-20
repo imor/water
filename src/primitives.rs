@@ -28,6 +28,20 @@ pub struct Import<'a> {
 }
 
 #[derive(Debug)]
+pub enum ExportDesc {
+    Func { func_index: u32 },
+    Table { table_index: u32 },
+    Memory { memory_index: u32 },
+    Global { global_index: u32},
+}
+
+#[derive(Debug)]
+pub struct Export<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) export_desc: ExportDesc
+}
+
+#[derive(Debug)]
 pub struct Limits {
     pub(crate) min: u32,
     pub(crate) max: Option<u32>,
