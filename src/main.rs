@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError};
 
 #[derive(Debug)]
 enum MyError {
@@ -15,6 +15,7 @@ enum MyError {
     MemoryReader(MemoryReaderError),
     GlobalReader(GlobalReaderError),
     StartReader(StartReaderError),
+    ElementReader(ElementReaderError),
 }
 
 impl From<io::Error> for MyError {
@@ -74,6 +75,12 @@ impl From<GlobalReaderError> for MyError {
 impl From<StartReaderError> for MyError {
     fn from(e: StartReaderError) -> Self {
         MyError::StartReader(e)
+    }
+}
+
+impl From<ElementReaderError> for MyError {
+    fn from(e: ElementReaderError) -> Self {
+        MyError::ElementReader(e)
     }
 }
 
@@ -156,7 +163,14 @@ fn main() -> Result<(), MyError> {
                     SectionReader::Start(reader) => {
                         println!("Found start section with func index {:?}.", reader.get_func_index())
                     },
-                    SectionReader::Element => println!("Found element section."),
+                    SectionReader::Element(mut reader) => {
+                        println!("Found element section.");
+                        let count = reader.get_count();
+                        for _ in 0..count {
+                            let element_type = reader.read()?;
+                            println!("Found element type {:?}", element_type);
+                        }
+                    },
                     SectionReader::Code => println!("Found code section."),
                     SectionReader::Data => println!("Found data section."),
                     SectionReader::Unknown(id) => println!("Found unknown section with id {}.", id),

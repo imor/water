@@ -77,3 +77,10 @@ pub struct GlobalType {
     pub(crate) var_type: ValueType,
     pub(crate) mutable: bool,
 }
+
+#[derive(Debug)]
+pub struct ElementType {
+    pub(crate) table_index: TableIndex,
+    //pub(crate) expr: Expr,//TODO:Start parsing expressions
+    pub(crate) function_indices: Box<[FuncIndex]>,
+}

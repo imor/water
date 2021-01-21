@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte};
 use std::{result, str};
-use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType};
+use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementType, TableIndex, FuncIndex};
 use crate::types::ValueType::{I32, I64, F32, F64};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
@@ -157,6 +157,24 @@ impl<'a> BinaryReader<'a> {
             },
             _ => Err(InvalidLimitsByte)
         }
+    }
+
+    pub fn read_element_type(&mut self) -> Result<ElementType> {
+        let table_index = TableIndex(self.read_var_u32()?);
+        //TODO:Not reading the expression for now
+        loop {
+            match self.read_u8()? {
+                0x0B => break,
+                _ => continue,
+            }
+        }
+        let len = self.read_var_u32()?;
+        let mut func_indices = Vec::with_capacity(len as usize);
+        for _ in 0..len {
+            let func_index = FuncIndex(self.read_var_u32()?);
+            func_indices.push(func_index);
+        }
+        Ok(ElementType { table_index, function_indices: func_indices.into_boxed_slice() })
     }
 }
 
