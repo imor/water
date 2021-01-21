@@ -1,3 +1,6 @@
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct FuncIndex(pub(crate) u32);
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum ValueType {
     I32,

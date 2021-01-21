@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError};
 
 #[derive(Debug)]
 enum MyError {
@@ -14,6 +14,7 @@ enum MyError {
     TableReader(TableReaderError),
     MemoryReader(MemoryReaderError),
     GlobalReader(GlobalReaderError),
+    StartReader(StartReaderError),
 }
 
 impl From<io::Error> for MyError {
@@ -67,6 +68,12 @@ impl From<MemoryReaderError> for MyError {
 impl From<GlobalReaderError> for MyError {
     fn from(e: GlobalReaderError) -> Self {
         MyError::GlobalReader(e)
+    }
+}
+
+impl From<StartReaderError> for MyError {
+    fn from(e: StartReaderError) -> Self {
+        MyError::StartReader(e)
     }
 }
 
@@ -146,7 +153,9 @@ fn main() -> Result<(), MyError> {
                             println!("Found export {:?}", export);
                         }
                     },
-                    SectionReader::Start => println!("Found start section."),
+                    SectionReader::Start(reader) => {
+                        println!("Found start section with func index {:?}.", reader.get_func_index())
+                    },
                     SectionReader::Element => println!("Found element section."),
                     SectionReader::Code => println!("Found code section."),
                     SectionReader::Data => println!("Found data section."),

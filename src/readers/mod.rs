@@ -6,6 +6,7 @@ pub use crate::readers::table_section::{TableSectionReader, TableReaderError};
 pub use crate::readers::memory_section::{MemorySectionReader, MemoryReaderError};
 pub use crate::readers::global_section::{GlobalSectionReader, GlobalReaderError};
 pub use crate::readers::export_section::{ExportSectionReader, ExportReaderError};
+pub use crate::readers::start_section::{StartSectionReader, StartReaderError};
 
 mod custom_section;
 mod type_section;
@@ -15,3 +16,4 @@ mod table_section;
 mod memory_section;
 mod global_section;
 mod export_section;
+mod start_section;

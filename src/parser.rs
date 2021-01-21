@@ -8,6 +8,7 @@ use crate::TableSectionReader;
 use crate::MemorySectionReader;
 use crate::GlobalSectionReader;
 use crate::ExportSectionReader;
+use crate::StartSectionReader;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum SectionReader<'a> {
@@ -19,7 +20,7 @@ pub enum SectionReader<'a> {
     Memory(MemorySectionReader<'a>),
     Global(GlobalSectionReader<'a>),
     Export(ExportSectionReader<'a>),
-    Start,
+    Start(StartSectionReader<'a>),
     Element,
     Code,
     Data,
@@ -101,6 +102,7 @@ impl Parser {
             5 => SectionReader::Memory(MemorySectionReader::new(buffer)?),
             6 => SectionReader::Global(GlobalSectionReader::new(buffer)?),
             7 => SectionReader::Export(ExportSectionReader::new(buffer)?),
+            8 => SectionReader::Start(StartSectionReader::new(buffer)?),
             id => SectionReader::Unknown(id),
         })
     }
