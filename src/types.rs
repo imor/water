@@ -35,7 +35,7 @@ pub struct Import<'a> {
 
 #[derive(Debug)]
 pub enum ExportDesc {
-    Func { func_index: u32 },
+    Func { func_index: FuncIndex },
     Table { table_index: u32 },
     Memory { memory_index: u32 },
     Global { global_index: u32},

@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::types::{Export, ExportDesc};
+use crate::types::{Export, ExportDesc, FuncIndex};
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct ExportSectionReader<'a> {
@@ -43,7 +43,7 @@ impl<'a> ExportSectionReader<'a> {
     fn read_export_desc(&mut self) -> Result<ExportDesc> {
         match self.reader.read_u8()? {
             0x00 => {
-                let func_index = self.reader.read_var_u32()?;
+                let func_index = FuncIndex(self.reader.read_var_u32()?);
                 Ok(ExportDesc::Func { func_index })
             },
             0x01 => {
