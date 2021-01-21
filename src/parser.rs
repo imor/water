@@ -2,10 +2,11 @@ use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::ParseError::{InnerError, UnneededBytes};
 use crate::readers::{TypeSectionReader, ImportSectionReader, FunctionSectionReader};
 use crate::ExportSectionReader;
+use crate::CustomSectionReader;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum SectionReader<'a> {
-    Custom,
+    Custom(CustomSectionReader<'a>),
     Type(TypeSectionReader<'a>),
     Import(ImportSectionReader<'a>),
     Function(FunctionSectionReader<'a>),
@@ -19,26 +20,6 @@ pub enum SectionReader<'a> {
     Data,
     Unknown(u8),
 }
-
-// impl From<u8> for SectionReader {
-//     fn from(val: u8) -> Self {
-//         match val {
-//             0 => SectionReader::Custom,
-//             1 => SectionReader::Type,
-//             2 => SectionReader::Import,
-//             3 => SectionReader::Function,
-//             4 => SectionReader::Table,
-//             5 => SectionReader::Memory,
-//             6 => SectionReader::Global,
-//             7 => SectionReader::Export,
-//             8 => SectionReader::Start,
-//             9 => SectionReader::Element,
-//             10 => SectionReader::Code,
-//             11 => SectionReader::Data,
-//             _ => SectionReader::Unknown,
-//         }
-//     }
-// }
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Chunk<'a> {
@@ -90,8 +71,9 @@ impl Parser {
                     Ok((0, Chunk::Done))
                 } else {
                     let id = reader.read_u8()?;
-                    let size = reader.read_var_u32()?;
-                    Ok((reader.position + size as usize, Chunk::Section(Self::create_section_reader(&buffer[reader.position..], id)?)))
+                    let size = reader.read_var_u32()? as usize;
+                    Ok((reader.position + size,
+                        Chunk::Section(Self::create_section_reader(&buffer[reader.position..reader.position + size], id)?)))
                 }
             }
             ParserLocation::End => {
@@ -106,6 +88,7 @@ impl Parser {
 
     fn create_section_reader(buffer: &[u8], id: u8) -> Result<SectionReader, ParseError> {
         Ok(match id {
+            0 => SectionReader::Custom(CustomSectionReader::new(buffer)?),
             1 => SectionReader::Type(TypeSectionReader::new(buffer)?),
             2 => SectionReader::Import(ImportSectionReader::new(buffer)?),
             3 => SectionReader::Function(FunctionSectionReader::new(buffer)?),

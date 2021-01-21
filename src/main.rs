@@ -65,7 +65,9 @@ fn main() -> Result<(), MyError> {
             },
             (consumed, Chunk::Section(section)) => {
                 match section {
-                    SectionReader::Custom => println!("Found custom section."),
+                    SectionReader::Custom(reader) => {
+                        println!("Found custom section with name {} and {} bytes data.", reader.get_name(), reader.get_data().len());
+                    },
                     SectionReader::Type(mut reader) => {
                         println!("Found type section.");
                         let count = reader.get_count();
