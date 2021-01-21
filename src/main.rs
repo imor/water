@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError};
 
 #[derive(Debug)]
 enum MyError {
@@ -13,6 +13,7 @@ enum MyError {
     ExportReader(ExportReaderError),
     TableReader(TableReaderError),
     MemoryReader(MemoryReaderError),
+    GlobalReader(GlobalReaderError),
 }
 
 impl From<io::Error> for MyError {
@@ -60,6 +61,12 @@ impl From<TableReaderError> for MyError {
 impl From<MemoryReaderError> for MyError {
     fn from(e: MemoryReaderError) -> Self {
         MyError::MemoryReader(e)
+    }
+}
+
+impl From<GlobalReaderError> for MyError {
+    fn from(e: GlobalReaderError) -> Self {
+        MyError::GlobalReader(e)
     }
 }
 
@@ -123,7 +130,14 @@ fn main() -> Result<(), MyError> {
                             println!("Found memory {:?}", memory);
                         }
                     },
-                    SectionReader::Global => println!("Found global section."),
+                    SectionReader::Global(mut reader) => {
+                        println!("Found global section.");
+                        let count = reader.get_count();
+                        for _ in 0..count {
+                            let global = reader.read()?;
+                            println!("Found global {:?}", global);
+                        }
+                    },
                     SectionReader::Export(mut reader) => {
                         println!("Found export section.");
                         let count = reader.get_count();
