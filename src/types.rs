@@ -4,6 +4,15 @@ pub struct FuncIndex(pub(crate) u32);
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct TypeIndex(pub(crate) u32);
 
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct TableIndex(pub(crate) u32);
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct MemoryIndex(pub(crate) u32);
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct GlobalIndex(pub(crate) u32);
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum ValueType {
     I32,
@@ -36,9 +45,9 @@ pub struct Import<'a> {
 #[derive(Debug)]
 pub enum ExportDesc {
     Func { func_index: FuncIndex },
-    Table { table_index: u32 },
-    Memory { memory_index: u32 },
-    Global { global_index: u32},
+    Table { table_index: TableIndex },
+    Memory { memory_index: MemoryIndex },
+    Global { global_index: GlobalIndex },
 }
 
 #[derive(Debug)]
