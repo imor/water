@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::primitives::GlobalType;
+use crate::types::GlobalType;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct GlobalSectionReader<'a> {

@@ -1,8 +1,8 @@
 use std::convert::TryInto;
 use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte};
 use std::{result, str};
-use crate::primitives::{TableType, Limits, MemoryType, GlobalType, ValueType};
-use crate::primitives::ValueType::{I32, I64, F32, F64};
+use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType};
+use crate::types::ValueType::{I32, I64, F32, F64};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;

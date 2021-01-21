@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::primitives::TableType;
+use crate::types::TableType;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct TableSectionReader<'a> {

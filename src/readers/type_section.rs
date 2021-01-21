@@ -1,5 +1,5 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
-use crate::primitives::{FuncType, ValueType};
+use crate::types::{FuncType, ValueType};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
 

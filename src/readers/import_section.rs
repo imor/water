@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::primitives::{Import, ImportDesc};
+use crate::types::{Import, ImportDesc};
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct ImportSectionReader<'a> {

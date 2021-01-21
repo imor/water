@@ -1,6 +1,6 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
-use crate::primitives::FuncIndex;
+use crate::types::FuncIndex;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct StartSectionReader<'a> {
