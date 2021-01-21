@@ -84,3 +84,9 @@ pub struct ElementType {
     //pub(crate) expr: Expr,//TODO:Start parsing expressions
     pub(crate) function_indices: Box<[FuncIndex]>,
 }
+#[derive(Debug)]
+pub struct DataType<'a> {
+    pub(crate) memory_index: MemoryIndex,
+    //pub(crate) expr: Expr,//TODO:Start parsing expressions
+    pub(crate) bytes: &'a [u8],
+}

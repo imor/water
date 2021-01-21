@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError};
 
 #[derive(Debug)]
 enum MyError {
@@ -16,6 +16,7 @@ enum MyError {
     GlobalReader(GlobalReaderError),
     StartReader(StartReaderError),
     ElementReader(ElementReaderError),
+    DataReader(DataReaderError),
 }
 
 impl From<io::Error> for MyError {
@@ -81,6 +82,12 @@ impl From<StartReaderError> for MyError {
 impl From<ElementReaderError> for MyError {
     fn from(e: ElementReaderError) -> Self {
         MyError::ElementReader(e)
+    }
+}
+
+impl From<DataReaderError> for MyError {
+    fn from(e: DataReaderError) -> Self {
+        MyError::DataReader(e)
     }
 }
 
@@ -172,7 +179,14 @@ fn main() -> Result<(), MyError> {
                         }
                     },
                     SectionReader::Code => println!("Found code section."),
-                    SectionReader::Data => println!("Found data section."),
+                    SectionReader::Data(mut reader) => {
+                        println!("Found data section.");
+                        let count = reader.get_count();
+                        for _ in 0..count {
+                            let data_type = reader.read()?;
+                            println!("Found data type {:?}", data_type);
+                        }
+                    },
                     SectionReader::Unknown(id) => println!("Found unknown section with id {}.", id),
                 }
                 consumed

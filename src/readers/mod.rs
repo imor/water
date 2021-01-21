@@ -8,6 +8,7 @@ pub use crate::readers::global_section::{GlobalSectionReader, GlobalReaderError}
 pub use crate::readers::export_section::{ExportSectionReader, ExportReaderError};
 pub use crate::readers::start_section::{StartSectionReader, StartReaderError};
 pub use crate::readers::element_section::{ElementSectionReader, ElementReaderError};
+pub use crate::readers::data_section::{DataSectionReader, DataReaderError};
 
 mod custom_section;
 mod type_section;
@@ -19,3 +20,4 @@ mod global_section;
 mod export_section;
 mod start_section;
 mod element_section;
+mod data_section;
