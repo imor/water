@@ -1,6 +1,9 @@
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct FuncIndex(pub(crate) u32);
 
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct TypeIndex(pub(crate) u32);
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum ValueType {
     I32,
@@ -17,7 +20,7 @@ pub struct FuncType {
 
 #[derive(Debug)]
 pub enum ImportDesc {
-    Func { type_index: u32},
+    Func { type_index: TypeIndex },
     Table(TableType),
     Memory(MemoryType),
     Global(GlobalType),
