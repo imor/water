@@ -9,6 +9,7 @@ pub use crate::readers::export_section::{ExportSectionReader, ExportReaderError}
 pub use crate::readers::start_section::{StartSectionReader, StartReaderError};
 pub use crate::readers::element_section::{ElementSectionReader, ElementReaderError};
 pub use crate::readers::data_section::{DataSectionReader, DataReaderError};
+pub use crate::readers::branch_table::{BranchTableReader, BranchReaderError};
 
 mod custom_section;
 mod type_section;
@@ -21,3 +22,4 @@ mod export_section;
 mod start_section;
 mod element_section;
 mod data_section;
+mod branch_table;
