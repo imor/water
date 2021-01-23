@@ -106,8 +106,8 @@ pub enum BlockType {
 }
 
 pub struct MemArg {
-    alignment: u32,
-    offset: u32,
+    pub alignment: u32,
+    pub offset: u32,
 }
 
 pub enum Instruction<'a> {
@@ -115,6 +115,7 @@ pub enum Instruction<'a> {
     Nop,
     Block { block_type: BlockType },
     Loop { block_type: BlockType },
+    If { block_type: BlockType },
     Else,
     End,
     Branch { label_index: LabelIndex },

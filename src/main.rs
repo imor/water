@@ -92,7 +92,8 @@ impl From<DataReaderError> for MyError {
 }
 
 fn main() -> Result<(), MyError> {
-    let f = File::open("hello.wasm")?;
+    // let f = File::open("hello.wasm")?;
+    let f = File::open("C:/Users/raminder.singh/Downloads/main_bg.wasm")?;
     let mut reader = BufReader::new(f);
     let mut v = Vec::new();
     reader.read_to_end(&mut v)?;
