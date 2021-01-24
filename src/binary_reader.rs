@@ -83,7 +83,6 @@ impl<'a> BinaryReader<'a> {
         Ok(bytes[0])
     }
 
-    //TODO:Review and fix
     pub fn read_var_u32(&mut self) -> Result<u32> {
         let mut result: u32 = 0;
         let mut shift = 0;
@@ -280,6 +279,39 @@ mod tests {
     use crate::binary_reader::{BinaryReader, BinaryReaderError};
     use crate::binary_reader::BinaryReaderError::{UnexpectedEof, InvalidVaru32, InvalidVars33};
 
+    fn encode_var_u32(mut num: u32) -> Vec<u8> {
+        let mut result = Vec::new();
+        loop {
+            let mut byte = num as u8 & 0b0111_1111;
+            num >>= 7;
+            if num != 0 {
+                byte |= 0b1000_0000;
+            }
+            result.push(byte);
+            if num == 0 {
+                break;
+            }
+        }
+        result
+    }
+
+    //Ignoring this test because it takes almost an hour to run
+    #[ignore]
+    #[test]
+    fn var_u32_roundtrip() {
+        let mut lot = 1;
+        for i in 0..=u32::max_value() {
+            let encoded = encode_var_u32(i);
+            let mut reader = BinaryReader::new(&encoded);
+            let actual_result: Result<u32, BinaryReaderError> = reader.read_var_u32();
+            assert_eq!(Ok(i), actual_result);
+            if i % 10000000 == 0 {
+                println!("Done {} lots of {}", lot, u32::max_value() / 10000000);
+                lot += 1;
+            }
+        }
+    }
+
     #[test]
     fn read_var_u32() {
         for item in
@@ -368,7 +400,7 @@ mod tests {
         ].iter() {
             let (buffer, expected_result) : &(Vec<u8>, Result<i32, BinaryReaderError>) = item;
             let mut reader = BinaryReader::new(buffer);
-            let actual_result: Result<i32, BinaryReaderError> = reader.read_var_s32();
+            let actual_result: Result<i32, BinaryReaderError> = reader.read_var_i32();
             assert_eq!(*expected_result, actual_result);
         }
     }
