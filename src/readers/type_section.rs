@@ -26,7 +26,7 @@ pub type Result<T, E = TypeReaderError> = result::Result<T, E>;
 impl<'a> TypeSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<TypeSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_var_u32()?;
+        let count = reader.read_u32()?;
         Ok(TypeSectionReader { reader, count })
     }
 
@@ -35,7 +35,7 @@ impl<'a> TypeSectionReader<'a> {
     }
 
     pub fn read(&mut self) -> Result<FuncType> {
-        let byte = self.reader.read_u8()?;
+        let byte = self.reader.read_byte()?;
         match byte {
             0x60 => self.read_func_type(),
             _ => Err(TypeReaderError::InvalidLeadingByte),
@@ -49,7 +49,7 @@ impl<'a> TypeSectionReader<'a> {
     }
 
     fn read_types_vec(&mut self) -> Result<Box<[ValueType]>> {
-        let len = self.reader.read_var_u32()?;
+        let len = self.reader.read_u32()?;
         let mut types = Vec::with_capacity(len as usize);
         for _ in 0..len {
             types.push(self.reader.read_value_type()?);

@@ -31,7 +31,7 @@ pub type Result<T, E = InstructionReaderError> = result::Result<T, E>;
 impl<'a> InstructionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<InstructionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_var_u32()?;
+        let count = reader.read_u32()?;
         Ok(InstructionReader { reader, count })
     }
 
@@ -40,7 +40,7 @@ impl<'a> InstructionReader<'a> {
     }
 
     pub fn read(&mut self) -> Result<Instruction> {
-        match self.reader.read_u8()? {
+        match self.reader.read_byte()? {
             0x00 => Ok(Unreachable),
             0x01 => Ok(Nop),
             0x02 => {
@@ -58,11 +58,11 @@ impl<'a> InstructionReader<'a> {
             0x05 => Ok(Instruction::Else),
             0x0B => Ok(Instruction::End),
             0x0C => {
-                let label_index = LabelIndex(self.reader.read_var_u32()?);
+                let label_index = LabelIndex(self.reader.read_u32()?);
                 Ok(Instruction::Branch { label_index })
             },
             0x0D => {
-                let label_index = LabelIndex(self.reader.read_var_u32()?);
+                let label_index = LabelIndex(self.reader.read_u32()?);
                 Ok(Instruction::BranchIf { label_index })
             },
             0x0E => {
@@ -71,11 +71,11 @@ impl<'a> InstructionReader<'a> {
             },
             0x0F => Ok(Instruction::Return),
             0x10 => {
-                let func_index = FuncIndex(self.reader.read_var_u32()?);
+                let func_index = FuncIndex(self.reader.read_u32()?);
                 Ok(Instruction::Call { func_index })
             },
             0x11 => {
-                let type_index = TypeIndex(self.reader.read_var_u32()?);
+                let type_index = TypeIndex(self.reader.read_u32()?);
                 Ok(Instruction::CallIndirect { type_index })
             },
 
@@ -83,23 +83,23 @@ impl<'a> InstructionReader<'a> {
             0x1B => Ok(Instruction::Select),
 
             0x20 => {
-                let local_index = LocalIndex(self.reader.read_var_u32()?);
+                let local_index = LocalIndex(self.reader.read_u32()?);
                 Ok(Instruction::LocalGet { local_index })
             },
             0x21 => {
-                let local_index = LocalIndex(self.reader.read_var_u32()?);
+                let local_index = LocalIndex(self.reader.read_u32()?);
                 Ok(Instruction::LocalSet { local_index })
             },
             0x22 => {
-                let local_index = LocalIndex(self.reader.read_var_u32()?);
+                let local_index = LocalIndex(self.reader.read_u32()?);
                 Ok(Instruction::LocalTee { local_index })
             },
             0x23 => {
-                let global_index = GlobalIndex(self.reader.read_var_u32()?);
+                let global_index = GlobalIndex(self.reader.read_u32()?);
                 Ok(Instruction::GlobalGet { global_index })
             },
             0x24 => {
-                let global_index = GlobalIndex(self.reader.read_var_u32()?);
+                let global_index = GlobalIndex(self.reader.read_u32()?);
                 Ok(Instruction::GlobalSet { global_index })
             },
 
@@ -196,33 +196,33 @@ impl<'a> InstructionReader<'a> {
                 Ok(Instruction::I64Store32 { memarg })
             },
             0x3F => {
-                if let Ok(0x00) = self.reader.read_u8() {
+                if let Ok(0x00) = self.reader.read_byte() {
                     Ok(Instruction::MemorySize)
                 } else {
                     Err(InvalidMemorySizeByte)
                 }
             },
             0x40 => {
-                if let Ok(0x00) = self.reader.read_u8() {
+                if let Ok(0x00) = self.reader.read_byte() {
                     Ok(Instruction::MemoryGrow)
                 } else {
                     Err(InvalidMemorySizeByte)
                 }
             },
             0x41 => {
-                let val = self.reader.read_var_s32()?;
+                let val = self.reader.read_s32()?;
                 Ok(Instruction::I32Const(val))
             },
             0x42 => {
-                let val = self.reader.read_var_i64()?;
+                let val = self.reader.read_s64()?;
                 Ok(Instruction::I64Const(val))
             },
             0x43 => {
-                let val = self.reader.read_var_f32()?;
+                let val = self.reader.read_f32()?;
                 Ok(Instruction::F32Const(val))
             },
             0x44 => {
-                let val = self.reader.read_var_f64()?;
+                let val = self.reader.read_f64()?;
                 Ok(Instruction::F64Const(val))
             },
 
@@ -365,7 +365,7 @@ impl<'a> InstructionReader<'a> {
             0xC4 => Ok(Instruction::I64Extend32s),
 
             0xFC => {
-                match self.reader.read_var_u32()? {
+                match self.reader.read_u32()? {
                     0 => Ok(Instruction::I32TruncSatF32s),
                     1 => Ok(Instruction::I32TruncSatF32u),
                     2 => Ok(Instruction::I32TruncSatF64s),
@@ -383,8 +383,8 @@ impl<'a> InstructionReader<'a> {
     }
 
     fn read_memarg(&mut self) -> Result<MemArg> {
-        let alignment = self.reader.read_var_u32()?;
-        let offset = self.reader.read_var_u32()?;
+        let alignment = self.reader.read_u32()?;
+        let offset = self.reader.read_u32()?;
         Ok(MemArg { alignment, offset })
     }
 
@@ -392,10 +392,10 @@ impl<'a> InstructionReader<'a> {
         if let Ok(val_type) = self.reader.read_value_type() {
             Ok(BlockType::ValueType(val_type))
         } else {
-            match self.reader.read_u8()? {
+            match self.reader.read_byte()? {
                 0x40 => Ok(BlockType::Empty),
                 _ => {
-                    let index = self.reader.read_var_s33()?;
+                    let index = self.reader.read_s33()?;
                     if index < 0 || index > u32::max_value() as i64 {
                         Err(InvalidBlockTypeIndex)
                     } else {

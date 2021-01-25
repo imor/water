@@ -22,7 +22,7 @@ impl From<BinaryReaderError> for StartReaderError {
 impl<'a> StartSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<StartSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let index = reader.read_var_u32()?;
+        let index = reader.read_u32()?;
         Ok(StartSectionReader { reader, func_index: FuncIndex(index)})
     }
 

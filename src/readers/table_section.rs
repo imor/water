@@ -25,7 +25,7 @@ pub type Result<T, E = TableReaderError> = result::Result<T, E>;
 impl<'a> TableSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<TableSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_var_u32()?;
+        let count = reader.read_u32()?;
         Ok(TableSectionReader { reader, count })
     }
 

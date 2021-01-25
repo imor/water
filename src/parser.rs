@@ -78,8 +78,8 @@ impl Parser {
                     self.location = ParserLocation::End;
                     Ok((0, Chunk::Done))
                 } else {
-                    let id = reader.read_u8()?;
-                    let size = reader.read_var_u32()? as usize;
+                    let id = reader.read_byte()?;
+                    let size = reader.read_u32()? as usize;
                     Ok((reader.position + size,
                         Chunk::Section(Self::create_section_reader(&buffer[reader.position..reader.position + size], id)?)))
                 }

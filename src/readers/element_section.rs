@@ -25,7 +25,7 @@ pub type Result<T, E = ElementReaderError> = result::Result<T, E>;
 impl<'a> ElementSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<ElementSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_var_u32()?;
+        let count = reader.read_u32()?;
         Ok(ElementSectionReader { reader, count })
     }
 

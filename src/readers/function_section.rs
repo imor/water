@@ -24,7 +24,7 @@ pub type Result<T, E = FunctionReaderError> = result::Result<T, E>;
 impl<'a> FunctionSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<FunctionSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_var_u32()?;
+        let count = reader.read_u32()?;
         Ok(FunctionSectionReader { reader, count })
     }
 
@@ -33,6 +33,6 @@ impl<'a> FunctionSectionReader<'a> {
     }
 
     pub fn read(&mut self) -> Result<u32> {
-        Ok(self.reader.read_var_u32()?)
+        Ok(self.reader.read_u32()?)
     }
 }

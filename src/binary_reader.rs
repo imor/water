@@ -54,7 +54,7 @@ impl<'a> BinaryReader<'a> {
         Ok(&self.buffer[start..self.position])
     }
 
-    fn read_u32(&mut self) -> Result<u32> {
+    fn read_double_word(&mut self) -> Result<u32> {
         self.ensure_has_bytes(4)?;
         let word = u32::from_le_bytes(
             self.buffer[self.position..self.position + 4]
@@ -67,7 +67,7 @@ impl<'a> BinaryReader<'a> {
     pub fn read_file_header(&mut self) -> Result<(usize, u32)> {
         let magic_number = self.read_bytes(4)?;
         if magic_number == WASM_MAGIC_NUMBER {
-            let version = self.read_u32()?;
+            let version = self.read_double_word()?;
             if version == WASM_SUPPORTED_VERSION {
                 Ok((self.position, version))
             } else {
@@ -78,16 +78,16 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn read_u8(&mut self) -> Result<u8> {
+    pub fn read_byte(&mut self) -> Result<u8> {
         let bytes = self.read_bytes(1)?;
         Ok(bytes[0])
     }
 
-    pub fn read_var_u32(&mut self) -> Result<u32> {
+    pub fn read_u32(&mut self) -> Result<u32> {
         let mut result: u32 = 0;
         let mut shift = 0;
         loop {
-            let byte = self.read_u8()?;
+            let byte = self.read_byte()?;
             result |= ((byte & 0b0111_1111) as u32) << shift;
             // The fifth byte's 4 high bits must be zero
             if shift == 28 && (byte >> 4) != 0 {
@@ -101,11 +101,11 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub fn read_var_s33(&mut self) -> Result<i64> {
+    pub fn read_s33(&mut self) -> Result<i64> {
         let mut result: i64 = 0;
         let mut shift = 0;
         loop {
-            let byte = self.read_u8()?;
+            let byte = self.read_byte()?;
             result |= ((byte & 0b0111_1111) as i64) << shift;
             if shift == 28 {
                 let more = (byte & 0b1000_0000) != 0;
@@ -134,11 +134,11 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub fn read_var_s32(&mut self) -> Result<i32> {
+    pub fn read_s32(&mut self) -> Result<i32> {
         let mut result: i32 = 0;
         let mut shift = 0;
         loop {
-            let byte = self.read_u8()?;
+            let byte = self.read_byte()?;
             result |= ((byte & 0b0111_1111) as i32) << shift;
             if shift == 28 {
                 let more = (byte & 0b1000_0000) != 0;
@@ -165,17 +165,17 @@ impl<'a> BinaryReader<'a> {
     }
 
     //TODO:Implement
-    pub fn read_var_i64(&mut self) -> Result<i64> {
+    pub fn read_s64(&mut self) -> Result<i64> {
         Ok(0)
     }
 
     //TODO:Implement
-    pub fn read_var_f32(&mut self) -> Result<f32> {
+    pub fn read_f32(&mut self) -> Result<f32> {
         Ok(0.0)
     }
 
     //TODO:Implement
-    pub fn read_var_f64(&mut self) -> Result<f64> {
+    pub fn read_f64(&mut self) -> Result<f64> {
         Ok(0.0)
     }
 
@@ -184,13 +184,13 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub fn read_string(&mut self) -> Result<&'a str> {
-        let len = self.read_var_u32()? as usize;
+        let len = self.read_u32()? as usize;
         let bytes = self.read_bytes(len)?;
         str::from_utf8(bytes).map_err(|_| BinaryReaderError::InvalidUtf8)
     }
 
     pub fn read_table_type(&mut self) -> Result<TableType> {
-        match self.read_u8()? {
+        match self.read_byte()? {
             0x70 => {
                 let limits = self.read_limits()?;
                 Ok(TableType { limits })
@@ -211,7 +211,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_mutable_byte(&mut self) -> Result<bool> {
-        match self.read_u8()? {
+        match self.read_byte()? {
             0x00 => Ok(false),
             0x01 => Ok(true),
             _ => Err(InvalidMutableByte),
@@ -219,7 +219,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_value_type(&mut self) -> Result<ValueType> {
-        match self.read_u8()? {
+        match self.read_byte()? {
             0x7F => Ok(I32),
             0xFE => Ok(I64),
             0x7D => Ok(F32),
@@ -229,15 +229,15 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_limits(&mut self) -> Result<Limits> {
-        match self.read_u8()? {
+        match self.read_byte()? {
             0x00 => {
-                let min = self.read_var_u32()?;
+                let min = self.read_u32()?;
                 let max = None;
                 Ok(Limits { min, max })
             },
             0x01 => {
-                let min = self.read_var_u32()?;
-                let max = Some(self.read_var_u32()?);
+                let min = self.read_u32()?;
+                let max = Some(self.read_u32()?);
                 Ok(Limits { min, max })
             },
             _ => Err(InvalidLimitsByte)
@@ -245,33 +245,33 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub fn read_element_type(&mut self) -> Result<ElementType> {
-        let table_index = TableIndex(self.read_var_u32()?);
+        let table_index = TableIndex(self.read_u32()?);
         //TODO:Not reading the expression for now
         loop {
-            match self.read_u8()? {
+            match self.read_byte()? {
                 0x0B => break,
                 _ => continue,
             }
         }
-        let len = self.read_var_u32()?;
+        let len = self.read_u32()?;
         let mut func_indices = Vec::with_capacity(len as usize);
         for _ in 0..len {
-            let func_index = FuncIndex(self.read_var_u32()?);
+            let func_index = FuncIndex(self.read_u32()?);
             func_indices.push(func_index);
         }
         Ok(ElementType { table_index, function_indices: func_indices.into_boxed_slice() })
     }
 
     pub fn read_data_type(&mut self) -> Result<DataType> {
-        let memory_index = MemoryIndex(self.read_var_u32()?);
+        let memory_index = MemoryIndex(self.read_u32()?);
         //TODO:Not reading the expression for now
         loop {
-            match self.read_u8()? {
+            match self.read_byte()? {
                 0x0B => break,
                 _ => continue,
             }
         }
-        let len = self.read_var_u32()?;
+        let len = self.read_u32()?;
         let bytes = &self.buffer[self.position..self.position + len as usize];
         Ok(DataType { memory_index, bytes })
     }
@@ -282,7 +282,7 @@ mod tests {
     use crate::binary_reader::{BinaryReader, BinaryReaderError};
     use crate::binary_reader::BinaryReaderError::{UnexpectedEof, InvalidVaru32, InvalidVars33};
 
-    fn encode_var_u32(mut num: u32) -> Vec<u8> {
+    fn encode_u32(mut num: u32) -> Vec<u8> {
         let mut result = Vec::new();
         loop {
             let mut byte = num as u8 & 0b0111_1111;
@@ -301,12 +301,12 @@ mod tests {
     //Ignoring this test because it takes almost an hour to run
     #[ignore]
     #[test]
-    fn var_u32_roundtrip() {
+    fn u32_roundtrip() {
         let mut lot = 1;
         for i in 0..=u32::max_value() {
-            let encoded = encode_var_u32(i);
+            let encoded = encode_u32(i);
             let mut reader = BinaryReader::new(&encoded);
-            let actual_result: Result<u32, BinaryReaderError> = reader.read_var_u32();
+            let actual_result: Result<u32, BinaryReaderError> = reader.read_u32();
             assert_eq!(Ok(i), actual_result);
             if i % 10000000 == 0 {
                 println!("Done {} lots of {}", lot, u32::max_value() / 10000000);
@@ -315,7 +315,7 @@ mod tests {
         }
     }
 
-    fn encode_var_s32(mut num: i32) -> Vec<u8> {
+    fn encode_s32(mut num: i32) -> Vec<u8> {
         let mut result = Vec::new();
         let mut more = true;
         loop {
@@ -337,12 +337,12 @@ mod tests {
     //Ignoring this test because it takes almost an hour to run
     #[ignore]
     #[test]
-    fn var_s32_roundtrip() {
+    fn s32_roundtrip() {
         let mut lot = 1;
         for i in i32::min_value()..=i32::max_value() {
-            let encoded = encode_var_s32(i);
+            let encoded = encode_s32(i);
             let mut reader = BinaryReader::new(&encoded);
-            let actual_result: Result<i32, BinaryReaderError> = reader.read_var_s32();
+            let actual_result: Result<i32, BinaryReaderError> = reader.read_s32();
             assert_eq!(Ok(i), actual_result);
             if i % 10000000 == 0 {
                 println!("Done {} lots of {}", lot, u32::max_value() / 10000000);
@@ -351,7 +351,7 @@ mod tests {
         }
     }
 
-    fn encode_var_s33(mut num: i64) -> Vec<u8> {
+    fn encode_s33(mut num: i64) -> Vec<u8> {
         let mut result = Vec::new();
         let mut more = true;
         loop {
@@ -373,14 +373,14 @@ mod tests {
     //Ignoring this test because it takes almost two hours to run
     #[ignore]
     #[test]
-    fn var_s33_roundtrip() {
+    fn s33_roundtrip() {
         let mut lot = 1;
         let min: i64 = -4_294_967_296;
         let max: i64 = 4_294_967_296;
         for i in min..max {
-            let encoded = encode_var_s33(i);
+            let encoded = encode_s33(i);
             let mut reader = BinaryReader::new(&encoded);
-            let actual_result: Result<i64, BinaryReaderError> = reader.read_var_s33();
+            let actual_result: Result<i64, BinaryReaderError> = reader.read_s33();
             assert_eq!(Ok(i), actual_result);
             if i % 10000000 == 0 {
                 println!("Done {} lots of {}", lot, 2 * max / 10000000);
@@ -390,7 +390,7 @@ mod tests {
     }
 
     #[test]
-    fn read_var_u32() {
+    fn read_u32() {
         for item in
             [
                 (vec![0b0000_0000], Ok(0u32)),
@@ -415,13 +415,13 @@ mod tests {
             ].iter() {
             let (buffer, expected_result) : &(Vec<u8>, Result<u32, BinaryReaderError>) = item;
             let mut reader = BinaryReader::new(buffer);
-            let actual_result: Result<u32, BinaryReaderError> = reader.read_var_u32();
+            let actual_result: Result<u32, BinaryReaderError> = reader.read_u32();
             assert_eq!(*expected_result, actual_result);
         }
     }
 
     #[test]
-    fn read_var_s33() {
+    fn read_s33() {
         for item in
         [
             // (vec![0b0000_0000], Ok(0i64)),
@@ -446,13 +446,13 @@ mod tests {
         ].iter() {
             let (buffer, expected_result) : &(Vec<u8>, Result<i64, BinaryReaderError>) = item;
             let mut reader = BinaryReader::new(buffer);
-            let actual_result: Result<i64, BinaryReaderError> = reader.read_var_s33();
+            let actual_result: Result<i64, BinaryReaderError> = reader.read_s33();
             assert_eq!(*expected_result, actual_result);
         }
     }
 
     #[test]
-    fn read_var_s32() {
+    fn read_s32() {
         for item in
         [
             // (vec![0b0000_0000], Ok(0i32)),
@@ -478,7 +478,7 @@ mod tests {
         ].iter() {
             let (buffer, expected_result) : &(Vec<u8>, Result<i32, BinaryReaderError>) = item;
             let mut reader = BinaryReader::new(buffer);
-            let actual_result: Result<i32, BinaryReaderError> = reader.read_var_s32();
+            let actual_result: Result<i32, BinaryReaderError> = reader.read_s32();
             assert_eq!(*expected_result, actual_result);
         }
     }

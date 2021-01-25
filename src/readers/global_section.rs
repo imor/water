@@ -25,7 +25,7 @@ pub type Result<T, E = GlobalReaderError> = result::Result<T, E>;
 impl<'a> GlobalSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<GlobalSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_var_u32()?;
+        let count = reader.read_u32()?;
         Ok(GlobalSectionReader { reader, count })
     }
 
