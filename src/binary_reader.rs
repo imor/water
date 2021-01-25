@@ -130,24 +130,24 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    //TODO:Review and fix
-    pub fn read_var_i32(&mut self) -> Result<i32> {
+    pub fn read_var_s32(&mut self) -> Result<i32> {
         let mut result: i32 = 0;
         let mut shift = 0;
         loop {
             let byte = self.read_u8()?;
             result |= ((byte & 0b0111_1111) as i32) << shift;
             if shift == 28 {
-                let continuation_bit = (byte & 0b1000_0000) != 0;
-                let sign_and_unused_bit = (byte << 1) as i8 >> 4;
-                return if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
+                let more = (byte & 0b1000_0000) != 0;
+                let sign_and_unused_bits = (byte << 1) as i8 >> 4;
+                return if more || (sign_and_unused_bits != 0 && sign_and_unused_bits != -1) {
                     Err(InvalidVaru32)
                 } else {
                     Ok(result)
                 }
             }
+            shift += 7;
             if byte & 0b1000_0000 == 0 {
-                //copy the sign bit to all unused_bits
+                //extend the sign bit to all unused_bits
                 //by first shifting left by unused_bits
                 //which will place the sign bit at MSB position
                 //and then shifting right by unused_bits
@@ -156,7 +156,6 @@ impl<'a> BinaryReader<'a> {
                 result = (result << unused_bits) >> unused_bits;
                 break;
             }
-            shift += 7;
         }
         Ok(result)
     }
@@ -312,6 +311,42 @@ mod tests {
         }
     }
 
+    fn encode_var_s32(mut num: i32) -> Vec<u8> {
+        let mut result = Vec::new();
+        let mut more = true;
+        loop {
+            let mut byte = num as u8 & 0b0111_1111;
+            num >>= 7;
+            if (num == 0 && byte & 0b0100_0000 == 0) || (num == -1 && byte & 0b0100_0000 == 0b0100_0000) {
+                more = false;
+            } else {
+                byte |= 0b1000_0000;
+            }
+            result.push(byte);
+            if !more {
+                break;
+            }
+        }
+        result
+    }
+
+    //Ignoring this test because it takes almost an hour to run
+    #[ignore]
+    #[test]
+    fn var_s32_roundtrip() {
+        let mut lot = 1;
+        for i in i32::min_value()..=i32::max_value() {
+            let encoded = encode_var_s32(i);
+            let mut reader = BinaryReader::new(&encoded);
+            let actual_result: Result<i32, BinaryReaderError> = reader.read_var_s32();
+            assert_eq!(Ok(i), actual_result);
+            if i % 10000000 == 0 {
+                println!("Done {} lots of {}", lot, u32::max_value() / 10000000);
+                lot += 1;
+            }
+        }
+    }
+
     #[test]
     fn read_var_u32() {
         for item in
@@ -390,7 +425,8 @@ mod tests {
             // (vec![0b1111_1111, 0b1111_1111, 0b0111_1111], Ok(-1)),
             // (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Ok(4_194_303)),
             // (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0111_1111], Ok(-1)),
-            (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Ok(536_870_911)),
+            //(vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Ok(536_870_911)),
+            (encode_var_s32(-268435456), Ok(-268435456)),
             // (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_1111], Ok(4_294_967_295)),
             // (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0111_1111], Ok(-1)),
             // (vec![0b1000_0000, 0b1000_0000, 0b1000_0000, 0b1000_0000, 0b0111_0000], Ok(-4_294_967_296)),
@@ -400,7 +436,7 @@ mod tests {
         ].iter() {
             let (buffer, expected_result) : &(Vec<u8>, Result<i32, BinaryReaderError>) = item;
             let mut reader = BinaryReader::new(buffer);
-            let actual_result: Result<i32, BinaryReaderError> = reader.read_var_i32();
+            let actual_result: Result<i32, BinaryReaderError> = reader.read_var_s32();
             assert_eq!(*expected_result, actual_result);
         }
     }

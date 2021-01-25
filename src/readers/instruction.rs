@@ -210,7 +210,7 @@ impl<'a> InstructionReader<'a> {
                 }
             },
             0x41 => {
-                let val = self.reader.read_var_i32()?;
+                let val = self.reader.read_var_s32()?;
                 Ok(Instruction::I32Const(val))
             },
             0x42 => {
