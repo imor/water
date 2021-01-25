@@ -315,6 +315,28 @@ mod tests {
         }
     }
 
+    //Ignoring this test because it takes almost an hour to run
+    #[ignore]
+    #[test]
+    fn invalid_more_bit_u32() {
+        let mut lot = 1;
+        let total = u32::max_value() - 268_435_456;
+        for i in 268_435_456..=u32::max_value() {
+            let mut encoded = encode_u32(i);
+            assert_eq!(5, encoded.len());
+            let mut last_byte = encoded[4];
+            last_byte |= 0b1000_0000;
+            encoded[4] = last_byte;
+            let mut reader = BinaryReader::new(&encoded);
+            let actual_result: Result<u32, BinaryReaderError> = reader.read_u32();
+            assert_eq!(Err(InvalidU32), actual_result);
+            if i % 10000000 == 0 {
+                println!("Done {} lots of {}", lot, total / 10000000);
+                lot += 1;
+            }
+        }
+    }
+
     fn encode_s32(mut num: i32) -> Vec<u8> {
         let mut result = Vec::new();
         let mut more = true;
