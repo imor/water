@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidVaru32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidVars33};
+use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33};
 use std::{result, str};
 use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementType, TableIndex, FuncIndex, DataType, MemoryIndex};
 use crate::types::ValueType::{I32, I64, F32, F64};
@@ -15,9 +15,9 @@ pub enum BinaryReaderError {
     UnexpectedEof,
     BadVersion,
     BadMagicNumber,
-    InvalidVaru32,
-    InvalidVars32,
-    InvalidVars33,
+    InvalidU32,
+    InvalidS32,
+    InvalidS33,
     InvalidUtf8,
     InvalidElementTypeByte,
     InvalidLimitsByte,
@@ -91,7 +91,7 @@ impl<'a> BinaryReader<'a> {
             result |= ((byte & 0b0111_1111) as u32) << shift;
             // The fifth byte's 4 high bits must be zero
             if shift == 28 && (byte >> 4) != 0 {
-                return Err(InvalidVaru32);
+                return Err(InvalidU32);
             }
             shift += 7;
             if byte & 0b1000_0000 == 0 {
@@ -111,7 +111,7 @@ impl<'a> BinaryReader<'a> {
                 let more = (byte & 0b1000_0000) != 0;
                 let sign_and_unused_bits = (byte << 1) as i8 >> 5;
                 return if more || (sign_and_unused_bits != 0 && sign_and_unused_bits != -1) {
-                    Err(InvalidVars33)
+                    Err(InvalidS33)
                 } else {
                     //extend the sign bit to all the unused bits
                     let unused_bits = 64 - 33;
@@ -144,7 +144,7 @@ impl<'a> BinaryReader<'a> {
                 let more = (byte & 0b1000_0000) != 0;
                 let sign_and_unused_bits = (byte << 1) as i8 >> 4;
                 return if more || (sign_and_unused_bits != 0 && sign_and_unused_bits != -1) {
-                    Err(InvalidVaru32)
+                    Err(InvalidU32)
                 } else {
                     Ok(result)
                 }
@@ -280,7 +280,7 @@ impl<'a> BinaryReader<'a> {
 #[cfg(test)]
 mod tests {
     use crate::binary_reader::{BinaryReader, BinaryReaderError};
-    use crate::binary_reader::BinaryReaderError::{UnexpectedEof, InvalidVaru32, InvalidVars33};
+    use crate::binary_reader::BinaryReaderError::{UnexpectedEof, InvalidU32, InvalidS33};
 
     fn encode_u32(mut num: u32) -> Vec<u8> {
         let mut result = Vec::new();
@@ -407,11 +407,11 @@ mod tests {
                 (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0111_1111], Ok(268_435_455)),
                 (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Ok(536_870_911)),
                 (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_1111], Ok(4_294_967_295)),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0001_1111], Err(InvalidVaru32)),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0011_1111], Err(InvalidVaru32)),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0111_1111], Err(InvalidVaru32)),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111], Err(InvalidVaru32)),
-                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Err(InvalidVaru32)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0001_1111], Err(InvalidU32)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0011_1111], Err(InvalidU32)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0111_1111], Err(InvalidU32)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111], Err(InvalidU32)),
+                (vec![0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b1111_1111, 0b0000_0001], Err(InvalidU32)),
             ].iter() {
             let (buffer, expected_result) : &(Vec<u8>, Result<u32, BinaryReaderError>) = item;
             let mut reader = BinaryReader::new(buffer);
