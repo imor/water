@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33};
+use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33, InvalidS32};
 use std::{result, str};
 use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementType, TableIndex, FuncIndex, DataType, MemoryIndex};
 use crate::types::ValueType::{I32, I64, F32, F64};
@@ -144,7 +144,7 @@ impl<'a> BinaryReader<'a> {
                 let more = (byte & 0b1000_0000) != 0;
                 let sign_and_unused_bits = (byte << 1) as i8 >> 4;
                 return if more || (sign_and_unused_bits != 0 && sign_and_unused_bits != -1) {
-                    Err(InvalidU32)
+                    Err(InvalidS32)
                 } else {
                     Ok(result)
                 }
@@ -280,7 +280,7 @@ impl<'a> BinaryReader<'a> {
 #[cfg(test)]
 mod tests {
     use crate::binary_reader::{BinaryReader, BinaryReaderError};
-    use crate::binary_reader::BinaryReaderError::{UnexpectedEof, InvalidU32, InvalidS33};
+    use crate::binary_reader::BinaryReaderError::{UnexpectedEof, InvalidU32};
 
     fn encode_u32(mut num: u32) -> Vec<u8> {
         let mut result = Vec::new();
