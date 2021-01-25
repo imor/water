@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33, InvalidS32};
+use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33, InvalidS32, InvalidS64};
 use std::{result, str};
 use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementType, TableIndex, FuncIndex, DataType, MemoryIndex};
 use crate::types::ValueType::{I32, I64, F32, F64};
@@ -17,6 +17,7 @@ pub enum BinaryReaderError {
     BadMagicNumber,
     InvalidU32,
     InvalidS32,
+    InvalidS64,
     InvalidS33,
     InvalidUtf8,
     InvalidElementTypeByte,
@@ -164,9 +165,34 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    //TODO:Implement
     pub fn read_s64(&mut self) -> Result<i64> {
-        Ok(0)
+        let mut result: i64 = 0;
+        let mut shift = 0;
+        loop {
+            let byte = self.read_byte()?;
+            result |= ((byte & 0b0111_1111) as i64) << shift;
+            if shift == 63 {
+                let more = (byte & 0b1000_0000) != 0;
+                let sign_and_unused_bits = (byte << 1) as i8 >> 1;
+                return if more || (sign_and_unused_bits != 0 && sign_and_unused_bits != -1) {
+                    Err(InvalidS64)
+                } else {
+                    Ok(result)
+                }
+            }
+            shift += 7;
+            if byte & 0b1000_0000 == 0 {
+                //extend the sign bit to all unused_bits
+                //by first shifting left by unused_bits
+                //which will place the sign bit at MSB position
+                //and then shifting right by unused_bits
+                //which will copy the MSB bit to all unused_bits
+                let unused_bits = 64 - shift;
+                result = (result << unused_bits) >> unused_bits;
+                break;
+            }
+        }
+        Ok(result)
     }
 
     //TODO:Implement
@@ -302,14 +328,15 @@ mod tests {
     #[ignore]
     #[test]
     fn u32_roundtrip() {
+        let lot_size = 10000000;
         let mut lot = 1;
         for i in 0..=u32::max_value() {
             let encoded = encode_u32(i);
             let mut reader = BinaryReader::new(&encoded);
             let actual_result: Result<u32, BinaryReaderError> = reader.read_u32();
             assert_eq!(Ok(i), actual_result);
-            if i % 10000000 == 0 {
-                println!("Done {} lots of {}", lot, u32::max_value() / 10000000);
+            if i % lot_size == 0 {
+                println!("Done {} lots of {}", lot, u32::max_value() / lot_size);
                 lot += 1;
             }
         }
@@ -319,6 +346,7 @@ mod tests {
     #[ignore]
     #[test]
     fn invalid_more_bit_u32() {
+        let lot_size = 10000000;
         let mut lot = 1;
         let total = u32::max_value() - 268_435_456;
         for i in 268_435_456..=u32::max_value() {
@@ -330,8 +358,8 @@ mod tests {
             let mut reader = BinaryReader::new(&encoded);
             let actual_result: Result<u32, BinaryReaderError> = reader.read_u32();
             assert_eq!(Err(InvalidU32), actual_result);
-            if i % 10000000 == 0 {
-                println!("Done {} lots of {}", lot, total / 10000000);
+            if i % lot_size == 0 {
+                println!("Done {} lots of {}", lot, total / lot_size);
                 lot += 1;
             }
         }
@@ -360,14 +388,15 @@ mod tests {
     #[ignore]
     #[test]
     fn s32_roundtrip() {
+        let lot_size = 10000000;
         let mut lot = 1;
         for i in i32::min_value()..=i32::max_value() {
             let encoded = encode_s32(i);
             let mut reader = BinaryReader::new(&encoded);
             let actual_result: Result<i32, BinaryReaderError> = reader.read_s32();
             assert_eq!(Ok(i), actual_result);
-            if i % 10000000 == 0 {
-                println!("Done {} lots of {}", lot, u32::max_value() / 10000000);
+            if i % lot_size == 0 {
+                println!("Done {} lots of {}", lot, u32::max_value() / lot_size as u32);
                 lot += 1;
             }
         }
@@ -396,6 +425,7 @@ mod tests {
     #[ignore]
     #[test]
     fn s33_roundtrip() {
+        let lot_size = 10000000;
         let mut lot = 1;
         let min: i64 = -4_294_967_296;
         let max: i64 = 4_294_967_296;
@@ -404,9 +434,37 @@ mod tests {
             let mut reader = BinaryReader::new(&encoded);
             let actual_result: Result<i64, BinaryReaderError> = reader.read_s33();
             assert_eq!(Ok(i), actual_result);
-            if i % 10000000 == 0 {
-                println!("Done {} lots of {}", lot, 2 * max / 10000000);
+            if i % lot_size == 0 {
+                println!("Done {} lots of {}", lot, 2 * max / lot_size);
                 lot += 1;
+            }
+        }
+    }
+
+    fn encode_s64(num: i64) -> Vec<u8> {
+        encode_s33(num)
+    }
+
+    #[test]
+    fn s64_roundtrip() {
+        let mut lot = 1;
+        let lot_size = 1000000;
+        let ranges = vec![
+            -9_223_372_036_854_775_808..-9_223_372_036_854_775_808+lot_size,
+            -lot_size..lot_size,
+            (9_223_372_036_854_775_807-lot_size)..9_223_372_036_854_775_807,
+        ];
+        let total = ranges.iter().fold(0, |acc, x| acc +(x.end - x.start));
+        for r in ranges {
+            for i in r {
+                let encoded = encode_s64(i);
+                let mut reader = BinaryReader::new(&encoded);
+                let actual_result: Result<i64, BinaryReaderError> = reader.read_s64();
+                assert_eq!(Ok(i), actual_result);
+                if i % lot_size == 0 {
+                    println!("Done {} lots of {}", lot, total / lot_size);
+                    lot += 1;
+                }
             }
         }
     }
