@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::convert::{TryInto, TryFrom};
 use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33, InvalidS32, InvalidS64};
 use std::{result, str};
 use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementType, TableIndex, FuncIndex, DataType, MemoryIndex};
@@ -197,7 +197,9 @@ impl<'a> BinaryReader<'a> {
 
     //TODO:Implement
     pub fn read_f32(&mut self) -> Result<f32> {
-        Ok(0.0)
+        let bytes = self.read_bytes(4)?;
+        let bytes = <[u8; 4]>::try_from(bytes).unwrap();
+        Ok(f32::from_le_bytes(bytes))
     }
 
     //TODO:Implement
@@ -466,6 +468,21 @@ mod tests {
                     lot += 1;
                 }
             }
+        }
+    }
+
+    #[test]
+    fn read_f32() {
+        for item in
+            [
+                (vec![0x77, 0xbe, 0x8f, 0x3f], Ok(1.123f32)),
+                (vec![0x00, 0x00, 0x00, 0x00], Ok(0.0)),
+                (vec![0x00, 0x40, 0x1c, 0xc6], Ok(-9999.9999)),
+            ].iter() {
+            let (buffer, expected_result) : &(Vec<u8>, Result<f32, BinaryReaderError>) = item;
+            let mut reader = BinaryReader::new(buffer);
+            let actual_result: Result<f32, BinaryReaderError> = reader.read_f32();
+            assert_eq!(*expected_result, actual_result);
         }
     }
 }
