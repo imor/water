@@ -308,7 +308,7 @@ impl<'a> BinaryReader<'a> {
 #[cfg(test)]
 mod tests {
     use crate::binary_reader::{BinaryReader, BinaryReaderError};
-    use crate::binary_reader::BinaryReaderError::{UnexpectedEof, InvalidU32};
+    use crate::binary_reader::BinaryReaderError::InvalidU32;
 
     fn encode_u32(mut num: u32) -> Vec<u8> {
         let mut result = Vec::new();
