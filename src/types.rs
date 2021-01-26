@@ -86,6 +86,7 @@ pub struct GlobalType {
     pub(crate) mutable: bool,
 }
 
+//TODO: rename to ElementEntry maybe?
 #[derive(Debug)]
 pub struct ElementType<'a> {
     pub table_index: TableIndex,
@@ -94,11 +95,18 @@ pub struct ElementType<'a> {
 }
 
 //TODO: should members be made public or exposed through a method?
+//TODO: rename to DataEntry maybe?
 #[derive(Debug)]
 pub struct DataType<'a> {
     pub memory_index: MemoryIndex,
     pub expr_reader: InstructionReader<'a>,
     pub bytes: &'a [u8],
+}
+
+#[derive(Debug)]
+pub struct Locals {
+    pub count: u32,
+    pub value_type: ValueType,
 }
 
 #[derive(Debug)]

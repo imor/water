@@ -1,6 +1,6 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::ParseError::{InnerError, UnneededBytes};
-use crate::CustomSectionReader;
+use crate::{CustomSectionReader, CodeSectionReader};
 use crate::TypeSectionReader;
 use crate::ImportSectionReader;
 use crate::FunctionSectionReader;
@@ -24,7 +24,7 @@ pub enum SectionReader<'a> {
     Export(ExportSectionReader<'a>),
     Start(StartSectionReader<'a>),
     Element(ElementSectionReader<'a>),
-    Code,
+    Code(CodeSectionReader<'a>),
     Data(DataSectionReader<'a>),
     Unknown(u8),
 }
@@ -106,6 +106,7 @@ impl Parser {
             7 => SectionReader::Export(ExportSectionReader::new(buffer)?),
             8 => SectionReader::Start(StartSectionReader::new(buffer)?),
             9 => SectionReader::Element(ElementSectionReader::new(buffer)?),
+            10 => SectionReader::Code(CodeSectionReader::new(buffer)?),
             11 => SectionReader::Data(DataSectionReader::new(buffer)?),
             id => SectionReader::Unknown(id),
         })

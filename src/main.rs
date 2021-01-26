@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError, InstructionReaderError, Instruction};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError, InstructionReaderError, Instruction, CodeReaderError};
 
 #[derive(Debug)]
 enum MyError {
@@ -16,6 +16,7 @@ enum MyError {
     GlobalReader(GlobalReaderError),
     StartReader(StartReaderError),
     ElementReader(ElementReaderError),
+    CodeReader(CodeReaderError),
     DataReader(DataReaderError),
     InstructionReader(InstructionReaderError),
 }
@@ -83,6 +84,12 @@ impl From<StartReaderError> for MyError {
 impl From<ElementReaderError> for MyError {
     fn from(e: ElementReaderError) -> Self {
         MyError::ElementReader(e)
+    }
+}
+
+impl From<CodeReaderError> for MyError {
+    fn from(e: CodeReaderError) -> Self {
+        MyError::CodeReader(e)
     }
 }
 
@@ -193,7 +200,29 @@ fn main() -> Result<(), MyError> {
                             }
                         }
                     },
-                    SectionReader::Code => println!("Found code section."),
+                    SectionReader::Code(mut reader) => {
+                        let count = reader.get_count();
+                        println!("Found code section with {} code entries.", count);
+                        for _ in 0..count {
+                            let code = reader.read()?;
+                            println!("Found code entry {:?}", code);
+                            let mut locals_reader = code.get_locals_reader()?;
+                            let locals_count = locals_reader.get_count();
+                            println!("Found {} locals", locals_count);
+                            for _ in 0..locals_count {
+                                let locals = locals_reader.read()?;
+                                println!("Locals: {:?}", locals);
+                            }
+                            let mut instruction_reader = code.get_instruction_reader(locals_reader)?;
+                            loop {
+                                let instruction = instruction_reader.read();
+                                if let Err(_) = instruction {
+                                    break;
+                                }
+                                println!("Instruction: {:?}", instruction.unwrap());
+                            }
+                        }
+                    },
                     SectionReader::Data(mut reader) => {
                         let count = reader.get_count();
                         println!("Found data section with {} data elements.", count);

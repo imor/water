@@ -28,7 +28,7 @@ pub enum BinaryReaderError {
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct BinaryReader<'a> {
-    buffer: &'a [u8],
+    pub(crate) buffer: &'a [u8],
     pub(crate) position: usize,
 }
 
@@ -249,7 +249,7 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_value_type(&mut self) -> Result<ValueType> {
         match self.read_byte()? {
             0x7F => Ok(I32),
-            0xFE => Ok(I64),
+            0x7E => Ok(I64),
             0x7D => Ok(F32),
             0x7C => Ok(F64),
             _ => Err(InvalidValueTypeByte)
