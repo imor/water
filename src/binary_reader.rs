@@ -195,16 +195,16 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    //TODO:Implement
     pub fn read_f32(&mut self) -> Result<f32> {
         let bytes = self.read_bytes(4)?;
         let bytes = <[u8; 4]>::try_from(bytes).unwrap();
         Ok(f32::from_le_bytes(bytes))
     }
 
-    //TODO:Implement
     pub fn read_f64(&mut self) -> Result<f64> {
-        Ok(0.0)
+        let bytes = self.read_bytes(8)?;
+        let bytes = <[u8; 8]>::try_from(bytes).unwrap();
+        Ok(f64::from_le_bytes(bytes))
     }
 
     pub fn create_branch_table_reader(&mut self) -> Result<BranchTableReader> {
@@ -482,6 +482,21 @@ mod tests {
             let (buffer, expected_result) : &(Vec<u8>, Result<f32, BinaryReaderError>) = item;
             let mut reader = BinaryReader::new(buffer);
             let actual_result: Result<f32, BinaryReaderError> = reader.read_f32();
+            assert_eq!(*expected_result, actual_result);
+        }
+    }
+
+    #[test]
+    fn read_f64() {
+        for item in
+        [
+            (vec![0x2b, 0x87, 0x16, 0xd9, 0xce, 0xf7, 0xf1, 0x3f], Ok(1.123f64)),
+            (vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], Ok(0.0)),
+            (vec![0xa3, 0x23, 0xb9, 0xfc, 0xff, 0x87, 0xc3, 0xc0], Ok(-9999.9999)),
+        ].iter() {
+            let (buffer, expected_result) : &(Vec<u8>, Result<f64, BinaryReaderError>) = item;
+            let mut reader = BinaryReader::new(buffer);
+            let actual_result: Result<f64, BinaryReaderError> = reader.read_f64();
             assert_eq!(*expected_result, actual_result);
         }
     }
