@@ -305,6 +305,7 @@ impl<'a> BinaryReader<'a> {
         let expr_reader = InstructionReader::new(&self.buffer[before..after])?;
         let len = self.read_u32()?;
         let bytes = &self.buffer[self.position..self.position + len as usize];
+        self.position += len as usize;
         Ok(DataType { memory_index, expr_reader, bytes })
     }
 }
