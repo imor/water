@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError, InstructionReaderError, Instruction};
 
 #[derive(Debug)]
 enum MyError {
@@ -17,6 +17,7 @@ enum MyError {
     StartReader(StartReaderError),
     ElementReader(ElementReaderError),
     DataReader(DataReaderError),
+    InstructionReader(InstructionReaderError),
 }
 
 impl From<io::Error> for MyError {
@@ -88,6 +89,12 @@ impl From<ElementReaderError> for MyError {
 impl From<DataReaderError> for MyError {
     fn from(e: DataReaderError) -> Self {
         MyError::DataReader(e)
+    }
+}
+
+impl From<InstructionReaderError> for MyError {
+    fn from(e: InstructionReaderError) -> Self {
+        MyError::InstructionReader(e)
     }
 }
 
@@ -172,20 +179,34 @@ fn main() -> Result<(), MyError> {
                         println!("Found start section with func index {:?}.", reader.get_func_index())
                     },
                     SectionReader::Element(mut reader) => {
-                        println!("Found element section.");
                         let count = reader.get_count();
+                        println!("Found element section with {} elements.", count);
                         for _ in 0..count {
-                            let element_type = reader.read()?;
+                            let mut element_type = reader.read()?;
                             println!("Found element type {:?}", element_type);
+                            loop {
+                                let instruction = element_type.expr_reader.read()?;
+                                println!("Instruction: {:?}", instruction);
+                                if let Instruction::End = instruction {
+                                    break;
+                                }
+                            }
                         }
                     },
                     SectionReader::Code => println!("Found code section."),
                     SectionReader::Data(mut reader) => {
-                        println!("Found data section.");
                         let count = reader.get_count();
+                        println!("Found data section with {} data elements.", count);
                         for _ in 0..count {
-                            let data_type = reader.read()?;
+                            let mut data_type = reader.read()?;
                             println!("Found data type {:?}", data_type);
+                            loop {
+                                let instruction = data_type.expr_reader.read()?;
+                                println!("Instruction: {:?}", instruction);
+                                if let Instruction::End = instruction {
+                                    break;
+                                }
+                            }
                         }
                     },
                     SectionReader::Unknown(id) => println!("Found unknown section with id {}.", id),

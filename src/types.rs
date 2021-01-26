@@ -1,4 +1,4 @@
-use crate::BranchTableReader;
+use crate::{BranchTableReader, InstructionReader};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct FuncIndex(pub(crate) u32);
@@ -87,29 +87,34 @@ pub struct GlobalType {
 }
 
 #[derive(Debug)]
-pub struct ElementType {
-    pub(crate) table_index: TableIndex,
-    //pub(crate) expr: Expr,//TODO:Start parsing expressions
-    pub(crate) function_indices: Box<[FuncIndex]>,
-}
-#[derive(Debug)]
-pub struct DataType<'a> {
-    pub(crate) memory_index: MemoryIndex,
-    //pub(crate) expr: Expr,//TODO:Start parsing expressions
-    pub(crate) bytes: &'a [u8],
+pub struct ElementType<'a> {
+    pub table_index: TableIndex,
+    pub expr_reader: InstructionReader<'a>,
+    pub function_indices: Box<[FuncIndex]>,
 }
 
+//TODO: should members be made public or exposed through a method?
+#[derive(Debug)]
+pub struct DataType<'a> {
+    pub memory_index: MemoryIndex,
+    pub expr_reader: InstructionReader<'a>,
+    pub bytes: &'a [u8],
+}
+
+#[derive(Debug)]
 pub enum BlockType {
     Empty,
     ValueType(ValueType),
     TypeIndex(TypeIndex),
 }
 
+#[derive(Debug)]
 pub struct MemArg {
     pub alignment: u32,
     pub offset: u32,
 }
 
+#[derive(Debug)]
 pub enum Instruction<'a> {
     Unreachable,
     Nop,

@@ -3,7 +3,7 @@ use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagi
 use std::{result, str};
 use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementType, TableIndex, FuncIndex, DataType, MemoryIndex};
 use crate::types::ValueType::{I32, I64, F32, F64};
-use crate::BranchTableReader;
+use crate::{BranchTableReader, InstructionReader};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
@@ -274,34 +274,38 @@ impl<'a> BinaryReader<'a> {
 
     pub fn read_element_type(&mut self) -> Result<ElementType> {
         let table_index = TableIndex(self.read_u32()?);
-        //TODO:Not reading the expression for now
+        let before = self.position;
         loop {
             match self.read_byte()? {
                 0x0B => break,
                 _ => continue,
             }
         }
+        let after = self.position;
         let len = self.read_u32()?;
         let mut func_indices = Vec::with_capacity(len as usize);
         for _ in 0..len {
             let func_index = FuncIndex(self.read_u32()?);
             func_indices.push(func_index);
         }
-        Ok(ElementType { table_index, function_indices: func_indices.into_boxed_slice() })
+        let expr_reader = InstructionReader::new(&self.buffer[before..after])?;
+        Ok(ElementType { table_index, expr_reader, function_indices: func_indices.into_boxed_slice() })
     }
 
     pub fn read_data_type(&mut self) -> Result<DataType> {
         let memory_index = MemoryIndex(self.read_u32()?);
-        //TODO:Not reading the expression for now
+        let before = self.position;
         loop {
             match self.read_byte()? {
                 0x0B => break,
                 _ => continue,
             }
         }
+        let after = self.position;
+        let expr_reader = InstructionReader::new(&self.buffer[before..after])?;
         let len = self.read_u32()?;
         let bytes = &self.buffer[self.position..self.position + len as usize];
-        Ok(DataType { memory_index, bytes })
+        Ok(DataType { memory_index, expr_reader, bytes })
     }
 }
 

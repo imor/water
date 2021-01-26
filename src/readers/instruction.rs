@@ -8,7 +8,6 @@ use crate::types::Instruction::*;
 #[derive(Eq, PartialEq, Debug)]
 pub struct InstructionReader<'a> {
     reader: BinaryReader<'a>,
-    count: u32,
 }
 
 #[derive(Debug)]
@@ -30,13 +29,8 @@ pub type Result<T, E = InstructionReaderError> = result::Result<T, E>;
 
 impl<'a> InstructionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<InstructionReader<'a>> {
-        let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_u32()?;
-        Ok(InstructionReader { reader, count })
-    }
-
-    pub fn get_count(&self) -> u32 {
-        self.count
+        let reader = BinaryReader::new(buffer);
+        Ok(InstructionReader { reader })
     }
 
     pub fn read(&mut self) -> Result<Instruction> {
