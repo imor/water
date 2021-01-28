@@ -1,7 +1,7 @@
 use std::convert::{TryInto, TryFrom};
 use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33, InvalidS32, InvalidS64};
 use std::{result, str};
-use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementType, TableIndex, FuncIndex, DataType, MemoryIndex};
+use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementSegment, TableIndex, FuncIndex, DataSegment, MemoryIndex};
 use crate::types::ValueType::{I32, I64, F32, F64};
 use crate::{BranchTableReader, InstructionReader};
 
@@ -276,7 +276,7 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn read_element_type(&mut self) -> Result<ElementType> {
+    pub fn read_element_type(&mut self) -> Result<ElementSegment> {
         let table_index = TableIndex(self.read_u32()?);
         let before = self.position;
         loop {
@@ -293,10 +293,10 @@ impl<'a> BinaryReader<'a> {
             func_indices.push(func_index);
         }
         let expr_reader = InstructionReader::new(&self.buffer[before..after])?;
-        Ok(ElementType { table_index, expr_reader, function_indices: func_indices.into_boxed_slice() })
+        Ok(ElementSegment { table_index, expr_reader, function_indices: func_indices.into_boxed_slice() })
     }
 
-    pub fn read_data_type(&mut self) -> Result<DataType> {
+    pub fn read_data_type(&mut self) -> Result<DataSegment> {
         let memory_index = MemoryIndex(self.read_u32()?);
         let before = self.position;
         loop {
@@ -310,7 +310,7 @@ impl<'a> BinaryReader<'a> {
         let len = self.read_u32()?;
         let bytes = &self.buffer[self.position..self.position + len as usize];
         self.position += len as usize;
-        Ok(DataType { memory_index, expr_reader, bytes })
+        Ok(DataSegment { memory_index, expr_reader, bytes })
     }
 }
 

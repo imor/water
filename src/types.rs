@@ -1,10 +1,10 @@
 use crate::{BranchTableReader, InstructionReader};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct FuncIndex(pub(crate) u32);
+pub struct TypeIndex(pub(crate) u32);
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct TypeIndex(pub(crate) u32);
+pub struct FuncIndex(pub(crate) u32);
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct TableIndex(pub(crate) u32);
@@ -16,10 +16,10 @@ pub struct MemoryIndex(pub(crate) u32);
 pub struct GlobalIndex(pub(crate) u32);
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct LabelIndex(pub(crate) u32);
+pub struct LocalIndex(pub(crate) u32);
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct LocalIndex(pub(crate) u32);
+pub struct LabelIndex(pub(crate) u32);
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum ValueType {
@@ -30,13 +30,13 @@ pub enum ValueType {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct FuncType {
+pub struct FunctionType {
     pub(crate) params: Box<[ValueType]>,
     pub(crate) results: Box<[ValueType]>,
 }
 
 #[derive(Debug)]
-pub enum ImportDesc {
+pub enum ImportDescriptor {
     Func { type_index: TypeIndex },
     Table(TableType),
     Memory(MemoryType),
@@ -47,11 +47,11 @@ pub enum ImportDesc {
 pub struct Import<'a> {
     pub(crate) module_name: &'a str,
     pub(crate) name: &'a str,
-    pub(crate) import_desc: ImportDesc
+    pub(crate) import_descriptor: ImportDescriptor
 }
 
 #[derive(Debug)]
-pub enum ExportDesc {
+pub enum ExportDescriptor {
     Func { func_index: FuncIndex },
     Table { table_index: TableIndex },
     Memory { memory_index: MemoryIndex },
@@ -61,7 +61,7 @@ pub enum ExportDesc {
 #[derive(Debug)]
 pub struct Export<'a> {
     pub(crate) name: &'a str,
-    pub(crate) export_desc: ExportDesc
+    pub(crate) export_descriptor: ExportDescriptor
 }
 
 #[derive(Debug)]
@@ -86,18 +86,15 @@ pub struct GlobalType {
     pub(crate) mutable: bool,
 }
 
-//TODO: rename to ElementEntry maybe?
 #[derive(Debug)]
-pub struct ElementType<'a> {
+pub struct ElementSegment<'a> {
     pub table_index: TableIndex,
     pub expr_reader: InstructionReader<'a>,
     pub function_indices: Box<[FuncIndex]>,
 }
 
-//TODO: should members be made public or exposed through a method?
-//TODO: rename to DataEntry maybe?
 #[derive(Debug)]
-pub struct DataType<'a> {
+pub struct DataSegment<'a> {
     pub memory_index: MemoryIndex,
     pub expr_reader: InstructionReader<'a>,
     pub bytes: &'a [u8],
@@ -117,7 +114,7 @@ pub enum BlockType {
 }
 
 #[derive(Debug)]
-pub struct MemArg {
+pub struct MemoryArgument {
     pub alignment: u32,
     pub offset: u32,
 }
@@ -147,29 +144,29 @@ pub enum Instruction<'a> {
     GlobalGet { global_index: GlobalIndex },
     GlobalSet { global_index: GlobalIndex },
 
-    I32Load { memarg: MemArg },
-    I64Load { memarg: MemArg },
-    F32Load { memarg: MemArg },
-    F64Load { memarg: MemArg },
-    I32Load8s { memarg: MemArg },
-    I32Load8u { memarg: MemArg },
-    I32Load16s { memarg: MemArg },
-    I32Load16u { memarg: MemArg },
-    I64Load8s { memarg: MemArg },
-    I64Load8u { memarg: MemArg },
-    I64Load16s { memarg: MemArg },
-    I64Load16u { memarg: MemArg },
-    I64Load32s { memarg: MemArg },
-    I64Load32u { memarg: MemArg },
-    I32Store { memarg: MemArg },
-    I64Store { memarg: MemArg },
-    F32Store { memarg: MemArg },
-    F64Store { memarg: MemArg },
-    I32Store8 { memarg: MemArg },
-    I32Store16 { memarg: MemArg },
-    I64Store8 { memarg: MemArg },
-    I64Store16 { memarg: MemArg },
-    I64Store32 { memarg: MemArg },
+    I32Load { memory_argument: MemoryArgument },
+    I64Load { memory_argument: MemoryArgument },
+    F32Load { memory_argument: MemoryArgument },
+    F64Load { memory_argument: MemoryArgument },
+    I32Load8s { memory_argument: MemoryArgument },
+    I32Load8u { memory_argument: MemoryArgument },
+    I32Load16s { memory_argument: MemoryArgument },
+    I32Load16u { memory_argument: MemoryArgument },
+    I64Load8s { memory_argument: MemoryArgument },
+    I64Load8u { memory_argument: MemoryArgument },
+    I64Load16s { memory_argument: MemoryArgument },
+    I64Load16u { memory_argument: MemoryArgument },
+    I64Load32s { memory_argument: MemoryArgument },
+    I64Load32u { memory_argument: MemoryArgument },
+    I32Store { memory_argument: MemoryArgument },
+    I64Store { memory_argument: MemoryArgument },
+    F32Store { memory_argument: MemoryArgument },
+    F64Store { memory_argument: MemoryArgument },
+    I32Store8 { memory_argument: MemoryArgument },
+    I32Store16 { memory_argument: MemoryArgument },
+    I64Store8 { memory_argument: MemoryArgument },
+    I64Store16 { memory_argument: MemoryArgument },
+    I64Store32 { memory_argument: MemoryArgument },
     MemorySize,
     MemoryGrow,
 

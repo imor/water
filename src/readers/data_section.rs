@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::types::DataType;
+use crate::types::DataSegment;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct DataSectionReader<'a> {
@@ -33,7 +33,7 @@ impl<'a> DataSectionReader<'a> {
         self.count
     }
 
-    pub fn read(&mut self) -> Result<DataType> {
+    pub fn read(&mut self) -> Result<DataSegment> {
         Ok(self.reader.read_data_type()?)
     }
 }

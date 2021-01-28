@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::types::{Import, ImportDesc, TypeIndex};
+use crate::types::{Import, ImportDescriptor, TypeIndex};
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct ImportSectionReader<'a> {
@@ -38,26 +38,26 @@ impl<'a> ImportSectionReader<'a> {
         let module_name = self.reader.read_string()?;
         let name = self.reader.read_string()?;
         let import_desc = self.read_import_desc()?;
-        Ok(Import { module_name, name, import_desc })
+        Ok(Import { module_name, name, import_descriptor: import_desc })
     }
 
-    fn read_import_desc(&mut self) -> Result<ImportDesc> {
+    fn read_import_desc(&mut self) -> Result<ImportDescriptor> {
         match self.reader.read_byte()? {
             0x00 => {
                 let type_index = TypeIndex(self.reader.read_u32()?);
-                Ok(ImportDesc::Func{ type_index })
+                Ok(ImportDescriptor::Func{ type_index })
             },
             0x01 => {
                 let table_type = self.reader.read_table_type()?;
-                Ok(ImportDesc::Table(table_type))
+                Ok(ImportDescriptor::Table(table_type))
             },
             0x02 => {
                 let memory_type = self.reader.read_memory_type()?;
-                Ok(ImportDesc::Memory(memory_type))
+                Ok(ImportDescriptor::Memory(memory_type))
             },
             0x03 => {
                 let global_type = self.reader.read_global_type()?;
-                Ok(ImportDesc::Global(global_type))
+                Ok(ImportDescriptor::Global(global_type))
             },
             _ => Err(ImportReaderError::InvalidImportDescByte)
         }

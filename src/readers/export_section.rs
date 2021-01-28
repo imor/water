@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::types::{Export, ExportDesc, FuncIndex, TableIndex, MemoryIndex, GlobalIndex};
+use crate::types::{Export, ExportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex};
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct ExportSectionReader<'a> {
@@ -37,26 +37,26 @@ impl<'a> ExportSectionReader<'a> {
     pub fn read(&mut self) -> Result<Export> {
         let name = self.reader.read_string()?;
         let export_desc = self.read_export_desc()?;
-        Ok(Export { name, export_desc })
+        Ok(Export { name, export_descriptor: export_desc })
     }
 
-    fn read_export_desc(&mut self) -> Result<ExportDesc> {
+    fn read_export_desc(&mut self) -> Result<ExportDescriptor> {
         match self.reader.read_byte()? {
             0x00 => {
                 let func_index = FuncIndex(self.reader.read_u32()?);
-                Ok(ExportDesc::Func { func_index })
+                Ok(ExportDescriptor::Func { func_index })
             },
             0x01 => {
                 let table_index = TableIndex(self.reader.read_u32()?);
-                Ok(ExportDesc::Table { table_index })
+                Ok(ExportDescriptor::Table { table_index })
             },
             0x02 => {
                 let memory_index = MemoryIndex(self.reader.read_u32()?);
-                Ok(ExportDesc::Memory { memory_index })
+                Ok(ExportDescriptor::Memory { memory_index })
             },
             0x03 => {
                 let global_index = GlobalIndex(self.reader.read_u32()?);
-                Ok(ExportDesc::Global { global_index })
+                Ok(ExportDescriptor::Global { global_index })
             },
             _ => Err(ExportReaderError::InvalidExportDescByte)
         }

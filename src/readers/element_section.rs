@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::types::ElementType;
+use crate::types::ElementSegment;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct ElementSectionReader<'a> {
@@ -33,7 +33,7 @@ impl<'a> ElementSectionReader<'a> {
         self.count
     }
 
-    pub fn read(&mut self) -> Result<ElementType> {
+    pub fn read(&mut self) -> Result<ElementSegment> {
         Ok(self.reader.read_element_type()?)
     }
 }

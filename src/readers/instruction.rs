@@ -1,7 +1,7 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
-use crate::types::{Instruction, BlockType, TypeIndex, LabelIndex, FuncIndex, LocalIndex, GlobalIndex, MemArg};
+use crate::types::{Instruction, BlockType, TypeIndex, LabelIndex, FuncIndex, LocalIndex, GlobalIndex, MemoryArgument};
 use crate::readers::instruction::InstructionReaderError::{InvalidInstruction, InvalidBlockTypeIndex, InvalidMemorySizeByte, InvalidSatOpCode};
 use crate::types::Instruction::*;
 
@@ -102,96 +102,96 @@ impl<'a> InstructionReader<'a> {
             },
 
             0x28 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I32Load { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I32Load { memory_argument })
             },
             0x29 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Load { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Load { memory_argument })
             },
             0x2A => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::F32Load { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::F32Load { memory_argument })
             },
             0x2B => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::F64Load { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::F64Load { memory_argument })
             },
             0x2C => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I32Load8s { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I32Load8s { memory_argument })
             },
             0x2D => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I32Load8u { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I32Load8u { memory_argument })
             },
             0x2E => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I32Load16s { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I32Load16s { memory_argument })
             },
             0x2F => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I32Load16u { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I32Load16u { memory_argument })
             },
             0x30 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Load8s { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Load8s { memory_argument })
             },
             0x31 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Load8u { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Load8u { memory_argument })
             },
             0x32 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Load16s { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Load16s { memory_argument })
             },
             0x33 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Load16u { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Load16u { memory_argument })
             },
             0x34 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Load32s { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Load32s { memory_argument })
             },
             0x35 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Load32u { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Load32u { memory_argument })
             },
             0x36 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I32Store { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I32Store { memory_argument })
             },
             0x37 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Store { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Store { memory_argument })
             },
             0x38 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::F32Store { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::F32Store { memory_argument })
             },
             0x39 => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::F64Store { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::F64Store { memory_argument })
             },
             0x3A => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I32Store8 { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I32Store8 { memory_argument })
             },
             0x3B => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I32Store16 { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I32Store16 { memory_argument })
             },
             0x3C => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Store8 { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Store8 { memory_argument })
             },
             0x3D => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Store16 { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Store16 { memory_argument })
             },
             0x3E => {
-                let memarg = self.read_memarg()?;
-                Ok(Instruction::I64Store32 { memarg })
+                let memory_argument = self.read_memory_argument()?;
+                Ok(Instruction::I64Store32 { memory_argument })
             },
             0x3F => {
                 if let Ok(0x00) = self.reader.read_byte() {
@@ -380,10 +380,10 @@ impl<'a> InstructionReader<'a> {
         }
     }
 
-    fn read_memarg(&mut self) -> Result<MemArg> {
+    fn read_memory_argument(&mut self) -> Result<MemoryArgument> {
         let alignment = self.reader.read_u32()?;
         let offset = self.reader.read_u32()?;
-        Ok(MemArg { alignment, offset })
+        Ok(MemoryArgument { alignment, offset })
     }
 
     fn read_block_type(&mut self) -> Result<BlockType> {

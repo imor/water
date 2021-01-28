@@ -1,5 +1,5 @@
 use crate::binary_reader::{BinaryReader, BinaryReaderError};
-use crate::types::{FuncType, ValueType};
+use crate::types::{FunctionType, ValueType};
 use crate::binary_reader::Result as BinaryReaderResult;
 use std::result;
 
@@ -34,7 +34,7 @@ impl<'a> TypeSectionReader<'a> {
         self.count
     }
 
-    pub fn read(&mut self) -> Result<FuncType> {
+    pub fn read(&mut self) -> Result<FunctionType> {
         let byte = self.reader.read_byte()?;
         match byte {
             0x60 => self.read_func_type(),
@@ -42,10 +42,10 @@ impl<'a> TypeSectionReader<'a> {
         }
     }
 
-    fn read_func_type(&mut self) -> Result<FuncType> {
+    fn read_func_type(&mut self) -> Result<FunctionType> {
         let params = self.read_types_vec()?;
         let results = self.read_types_vec()?;
-        Ok(FuncType { params, results })
+        Ok(FunctionType { params, results })
     }
 
     fn read_types_vec(&mut self) -> Result<Box<[ValueType]>> {
