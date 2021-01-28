@@ -33,6 +33,10 @@ impl<'a> InstructionReader<'a> {
         Ok(InstructionReader { reader })
     }
 
+    pub fn eof(&self) -> bool {
+        self.reader.eof()
+    }
+
     pub fn read(&mut self) -> Result<Instruction> {
         match self.reader.read_byte()? {
             0x00 => Ok(Unreachable),

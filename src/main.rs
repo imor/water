@@ -215,11 +215,15 @@ fn main() -> Result<(), MyError> {
                             }
                             let mut instruction_reader = code.get_instruction_reader(locals_reader)?;
                             loop {
-                                let instruction = instruction_reader.read();
-                                if let Err(_) = instruction {
+                                if instruction_reader.eof() {
                                     break;
                                 }
-                                println!("Instruction: {:?}", instruction.unwrap());
+                                let instruction = instruction_reader.read();
+                                if let Ok(instruction) = instruction {
+                                    println!("Instruction: {:?}", instruction);
+                                } else {
+                                    println!("Error while reading instruction: {:?}", instruction)
+                                }
                             }
                         }
                     },

@@ -40,6 +40,10 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    pub fn eof(&self) -> bool {
+        self.position >= self.buffer.len()
+    }
+
     fn ensure_has_bytes(&self, n: usize) -> Result<()> {
         if self.position + n <= self.buffer.len() {
             Ok(())
