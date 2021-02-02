@@ -1,5 +1,5 @@
-use crate::binary_reader::{BinaryReader, BinaryReaderError};
-use crate::binary_reader::Result as BinaryReaderResult;
+use crate::readers::binary::{BinaryReader, BinaryReaderError};
+use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 use crate::types::ElementSegment;
 

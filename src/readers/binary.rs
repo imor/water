@@ -1,5 +1,5 @@
 use std::convert::{TryInto, TryFrom};
-use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33, InvalidS32, InvalidS64};
+use crate::readers::binary::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33, InvalidS32, InvalidS64};
 use std::{result, str};
 use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementSegment, TableIndex, FuncIndex, DataSegment, MemoryIndex};
 use crate::types::ValueType::{I32, I64, F32, F64};
@@ -316,8 +316,8 @@ impl<'a> BinaryReader<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::binary_reader::{BinaryReader, BinaryReaderError};
-    use crate::binary_reader::BinaryReaderError::InvalidU32;
+    use crate::readers::binary::{BinaryReader, BinaryReaderError};
+    use crate::readers::binary::BinaryReaderError::InvalidU32;
 
     fn encode_u32(mut num: u32) -> Vec<u8> {
         let mut result = Vec::new();

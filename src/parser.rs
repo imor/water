@@ -1,4 +1,4 @@
-use crate::binary_reader::{BinaryReader, BinaryReaderError};
+use crate::readers::binary::{BinaryReader, BinaryReaderError};
 use crate::ParseError::{InnerError, UnneededBytes};
 use crate::{CustomSectionReader, CodeSectionReader};
 use crate::TypeSectionReader;
@@ -122,7 +122,7 @@ impl Default for Parser {
 #[cfg(test)]
 mod tests {
     use crate::Parser;
-    use crate::binary_reader::BinaryReaderError::{UnexpectedEof, BadVersion};
+    use crate::readers::binary::BinaryReaderError::{UnexpectedEof, BadVersion};
     use crate::Chunk::Header;
     use crate::ParseError::InnerError;
 
