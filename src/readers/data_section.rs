@@ -1,7 +1,9 @@
 use crate::readers::binary::{BinaryReader, BinaryReaderError};
 use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
-use crate::types::DataSegment;
+use crate::types::{DataSegment, MemoryIndex};
+use crate::InstructionReader;
+use crate::readers::data_section::DataReaderError::InvalidDataSegmentLength;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct DataSectionReader<'a> {
@@ -12,6 +14,7 @@ pub struct DataSectionReader<'a> {
 #[derive(Debug)]
 pub enum DataReaderError {
     BinaryReaderError(BinaryReaderError),
+    InvalidDataSegmentLength,
 }
 
 impl From<BinaryReaderError> for DataReaderError {
@@ -34,6 +37,26 @@ impl<'a> DataSectionReader<'a> {
     }
 
     pub fn read(&mut self) -> Result<DataSegment> {
-        Ok(self.reader.read_data_type()?)
+        Ok(self.read_data_segment()?)
+    }
+
+    fn read_data_segment(&mut self) -> Result<DataSegment> {
+        let memory_index = MemoryIndex(self.reader.read_u32()?);
+        let before = self.reader.position;
+        loop {
+            match self.reader.read_byte()? {
+                0x0B => break,
+                _ => continue,
+            }
+        }
+        let after = self.reader.position;
+        let expr_reader = InstructionReader::new(self.reader.create_buffer_slice(before, after)?)?;
+        let len = self.reader.read_u32()? as usize;
+        if len > self.reader.buffer.len() {
+            return Err(InvalidDataSegmentLength)
+        }
+        let bytes = self.reader.create_buffer_slice(self.reader.position, self.reader.position + len)?;
+        self.reader.position += len;
+        Ok(DataSegment { memory_index, expr_reader, bytes })
     }
 }

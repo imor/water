@@ -1,10 +1,9 @@
 use std::convert::{TryInto, TryFrom};
-use crate::readers::binary::BinaryReaderError::{UnexpectedEof, BadVersion, BadMagicNumber, InvalidU32, InvalidElementTypeByte, InvalidLimitsByte, InvalidValueTypeByte, InvalidMutableByte, InvalidS33, InvalidS32, InvalidS64};
+use crate::readers::binary::BinaryReaderError::*;
 use std::{result, str};
-use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementSegment, TableIndex, FuncIndex, DataSegment, MemoryIndex};
+use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType};
 use crate::types::ValueType::{I32, I64, F32, F64};
-use crate::{BranchTableReader, InstructionReader};
-use crate::binary::BinaryReaderError::InvalidDataSegmentLength;
+use crate::BranchTableReader;
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
@@ -25,7 +24,7 @@ pub enum BinaryReaderError {
     InvalidLimitsByte,
     InvalidValueTypeByte,
     InvalidMutableByte,
-    InvalidDataSegmentLength,
+    InvalidBufferSliceArgs,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -278,45 +277,14 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn read_element_type(&mut self) -> Result<ElementSegment> {
-        let table_index = TableIndex(self.read_u32()?);
-        let before = self.position;
-        loop {
-            match self.read_byte()? {
-                0x0B => break,
-                _ => continue,
-            }
+    pub fn create_buffer_slice(&self, start: usize, end: usize) -> Result<&'a [u8]> {
+        if end > self.buffer.len() {
+            Err(InvalidBufferSliceArgs)
+        } else {
+            Ok(&self.buffer[start..end])
         }
-        let after = self.position;
-        let len = self.read_u32()?;
-        let mut func_indices = Vec::with_capacity(len as usize);
-        for _ in 0..len {
-            let func_index = FuncIndex(self.read_u32()?);
-            func_indices.push(func_index);
-        }
-        let expr_reader = InstructionReader::new(&self.buffer[before..after])?;
-        Ok(ElementSegment { table_index, expr_reader, function_indices: func_indices.into_boxed_slice() })
     }
 
-    pub fn read_data_type(&mut self) -> Result<DataSegment> {
-        let memory_index = MemoryIndex(self.read_u32()?);
-        let before = self.position;
-        loop {
-            match self.read_byte()? {
-                0x0B => break,
-                _ => continue,
-            }
-        }
-        let after = self.position;
-        let expr_reader = InstructionReader::new(&self.buffer[before..after])?;
-        let len = self.read_u32()? as usize;
-        if len > self.buffer.len() {
-            return Err(InvalidDataSegmentLength)
-        }
-        let bytes = &self.buffer[self.position..self.position + len];
-        self.position += len;
-        Ok(DataSegment { memory_index, expr_reader, bytes })
-    }
 }
 
 #[cfg(test)]
