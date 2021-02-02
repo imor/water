@@ -1,5 +1,5 @@
 use crate::readers::binary::{BinaryReader, BinaryReaderError};
-use crate::ParseError::{InnerError, UnneededBytes};
+use crate::ParseError::{InnerError, UnneededBytes, InvalidSectionSize};
 use crate::{CustomSectionReader, CodeSectionReader};
 use crate::TypeSectionReader;
 use crate::ImportSectionReader;
@@ -39,6 +39,7 @@ pub enum Chunk<'a> {
 #[derive(PartialEq, Eq, Debug)]
 pub enum ParseError {
     UnneededBytes,
+    InvalidSectionSize,
     InnerError(BinaryReaderError),
 }
 
@@ -80,8 +81,12 @@ impl Parser {
                 } else {
                     let id = reader.read_byte()?;
                     let size = reader.read_u32()? as usize;
-                    Ok((reader.position + size,
-                        Chunk::Section(Self::create_section_reader(&buffer[reader.position..reader.position + size], id)?)))
+                    if reader.position + size > buffer.len() {
+                        Err(InvalidSectionSize)
+                    } else {
+                        Ok((reader.position + size,
+                            Chunk::Section(Self::create_section_reader(&buffer[reader.position..reader.position + size], id)?)))
+                    }
                 }
             }
             ParserLocation::End => {

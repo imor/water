@@ -4,6 +4,7 @@ use std::{result, str};
 use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType, ElementSegment, TableIndex, FuncIndex, DataSegment, MemoryIndex};
 use crate::types::ValueType::{I32, I64, F32, F64};
 use crate::{BranchTableReader, InstructionReader};
+use crate::binary::BinaryReaderError::InvalidDataSegmentLength;
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
@@ -24,6 +25,7 @@ pub enum BinaryReaderError {
     InvalidLimitsByte,
     InvalidValueTypeByte,
     InvalidMutableByte,
+    InvalidDataSegmentLength,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -307,9 +309,12 @@ impl<'a> BinaryReader<'a> {
         }
         let after = self.position;
         let expr_reader = InstructionReader::new(&self.buffer[before..after])?;
-        let len = self.read_u32()?;
-        let bytes = &self.buffer[self.position..self.position + len as usize];
-        self.position += len as usize;
+        let len = self.read_u32()? as usize;
+        if len > self.buffer.len() {
+            return Err(InvalidDataSegmentLength)
+        }
+        let bytes = &self.buffer[self.position..self.position + len];
+        self.position += len;
         Ok(DataSegment { memory_index, expr_reader, bytes })
     }
 }

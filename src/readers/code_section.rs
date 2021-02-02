@@ -3,6 +3,7 @@ use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 use crate::types::Locals;
 use crate::InstructionReader;
+use crate::readers::code_section::CodeReaderError::InvalidCodeSize;
 
 pub type Result<T, E = CodeReaderError> = result::Result<T, E>;
 
@@ -31,6 +32,7 @@ pub struct CodeSectionReader<'a> {
 #[derive(Debug)]
 pub enum CodeReaderError {
     BinaryReaderError(BinaryReaderError),
+    InvalidCodeSize,
 }
 
 impl From<BinaryReaderError> for CodeReaderError {
@@ -56,9 +58,9 @@ impl<'a> CodeSectionReader<'a> {
 
     fn read_code(&mut self) -> Result<Code> {
         let size_bytes = self.reader.read_u32()? as usize;
-        println!("code size: {}", size_bytes);
-        //TODO: check at all places where a slice is created that it
-        //is within the bounds of the buffer
+        if self.reader.position + size_bytes > self.reader.buffer.len() {
+            return Err(InvalidCodeSize)
+        }
         let data = &self.reader.buffer[self.reader.position..self.reader.position + size_bytes];
         self.reader.position += size_bytes;
         Ok(Code { data })
