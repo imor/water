@@ -3,7 +3,7 @@ use crate::readers::binary::BinaryReaderError::*;
 use std::{result, str};
 use crate::types::{TableType, Limits, MemoryType, GlobalType, ValueType};
 use crate::types::ValueType::{I32, I64, F32, F64};
-use crate::BranchTableReader;
+use crate::{BranchTableReader, InstructionReader};
 
 const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 const WASM_SUPPORTED_VERSION: u32 = 0x1;
@@ -285,6 +285,17 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    pub fn create_instruction_reader(&mut self) -> Result<InstructionReader<'a>> {
+        let before = self.position;
+        loop {
+            match self.read_byte()? {
+                0x0B => break,
+                _ => continue,
+            }
+        }
+        let after = self.position;
+        Ok(InstructionReader::new(self.create_buffer_slice(before, after)?)?)
+    }
 }
 
 #[cfg(test)]

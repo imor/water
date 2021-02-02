@@ -192,7 +192,7 @@ fn main() -> Result<(), MyError> {
                             let mut element_type = reader.read()?;
                             println!("Found element type {:?}", element_type);
                             loop {
-                                let instruction = element_type.expr_reader.read()?;
+                                let instruction = element_type.instruction_reader.read()?;
                                 println!("Instruction: {:?}", instruction);
                                 if let Instruction::End = instruction {
                                     break;
@@ -234,7 +234,7 @@ fn main() -> Result<(), MyError> {
                             let mut data_type = reader.read()?;
                             println!("Found data type {:?}", data_type);
                             loop {
-                                let instruction = data_type.expr_reader.read()?;
+                                let instruction = data_type.instruction_reader.read()?;
                                 println!("Instruction: {:?}", instruction);
                                 if let Instruction::End = instruction {
                                     break;

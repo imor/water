@@ -2,7 +2,6 @@ use crate::readers::binary::{BinaryReader, BinaryReaderError};
 use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 use crate::types::{ElementSegment, TableIndex, FuncIndex};
-use crate::InstructionReader;
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct ElementSectionReader<'a> {
@@ -40,14 +39,7 @@ impl<'a> ElementSectionReader<'a> {
 
     fn read_element_segment(&mut self) -> Result<ElementSegment> {
         let table_index = TableIndex(self.reader.read_u32()?);
-        let before = self.reader.position;
-        loop {
-            match self.reader.read_byte()? {
-                0x0B => break,
-                _ => continue,
-            }
-        }
-        let after = self.reader.position;
+        let instruction_reader = self.reader.create_instruction_reader()?;
         let len = self.reader.read_u32()?;
         let mut func_indices = Vec::with_capacity(len as usize);
         for _ in 0..len {
@@ -55,7 +47,6 @@ impl<'a> ElementSectionReader<'a> {
             func_indices.push(func_index);
         }
 
-        let expr_reader = InstructionReader::new(self.reader.create_buffer_slice(before, after)?)?;
-        Ok(ElementSegment { table_index, expr_reader, function_indices: func_indices.into_boxed_slice() })
+        Ok(ElementSegment { table_index, instruction_reader, function_indices: func_indices.into_boxed_slice() })
     }
 }

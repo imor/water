@@ -89,14 +89,14 @@ pub struct GlobalType {
 #[derive(Debug)]
 pub struct ElementSegment<'a> {
     pub table_index: TableIndex,
-    pub expr_reader: InstructionReader<'a>,
+    pub instruction_reader: InstructionReader<'a>,
     pub function_indices: Box<[FuncIndex]>,
 }
 
 #[derive(Debug)]
 pub struct DataSegment<'a> {
     pub memory_index: MemoryIndex,
-    pub expr_reader: InstructionReader<'a>,
+    pub instruction_reader: InstructionReader<'a>,
     pub bytes: &'a [u8],
 }
 
