@@ -387,11 +387,9 @@ impl<'a> InstructionReader<'a> {
     }
 
     fn read_block_type(&mut self) -> Result<BlockType> {
-        let position = self.reader.position;
         if let Ok(val_type) = self.reader.read_value_type() {
             Ok(BlockType::ValueType(val_type))
         } else {
-            self.reader.position = position;
             match self.reader.read_byte()? {
                 0x40 => Ok(BlockType::Empty),
                 _ => {

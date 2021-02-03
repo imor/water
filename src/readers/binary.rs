@@ -29,8 +29,8 @@ pub enum BinaryReaderError {
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct BinaryReader<'a> {
-    pub(crate) buffer: &'a [u8],
-    pub(crate) position: usize,
+    buffer: &'a [u8],
+    position: usize,
 }
 
 impl<'a> BinaryReader<'a> {
@@ -39,6 +39,10 @@ impl<'a> BinaryReader<'a> {
             buffer,
             position: 0,
         }
+    }
+
+    pub fn get_position(&self) -> usize {
+        self.position
     }
 
     pub fn eof(&self) -> bool {
@@ -252,12 +256,16 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_value_type(&mut self) -> Result<ValueType> {
+        let position = self.get_position();
         match self.read_byte()? {
             0x7F => Ok(I32),
             0x7E => Ok(I64),
             0x7D => Ok(F32),
             0x7C => Ok(F64),
-            _ => Err(InvalidValueTypeByte)
+            _ => {
+                self.position = position;
+                Err(InvalidValueTypeByte)
+            }
         }
     }
 
@@ -283,6 +291,14 @@ impl<'a> BinaryReader<'a> {
         } else {
             Ok(&self.buffer[start..end])
         }
+    }
+
+    pub fn read_bytes_vec(&mut self) -> Result<&'a [u8]> {
+        let len = self.read_u32()? as usize;
+        let start = self.get_position();
+        let end = start + len;
+        self.position += len;
+        self.create_buffer_slice(start, end)
     }
 
     pub fn create_instruction_reader(&mut self) -> Result<InstructionReader<'a>> {

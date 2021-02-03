@@ -3,7 +3,6 @@ use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 use crate::types::Locals;
 use crate::InstructionReader;
-use crate::readers::code_section::CodeReaderError::InvalidCodeSize;
 
 pub type Result<T, E = CodeReaderError> = result::Result<T, E>;
 
@@ -18,7 +17,7 @@ impl<'a> Code<'a> {
     }
 
     pub fn get_instruction_reader(&self, locals_reader: LocalsReader) -> Result<InstructionReader> {
-        let buffer = &self.data[locals_reader.reader.position..];
+        let buffer = &self.data[locals_reader.reader.get_position()..];
         Ok(InstructionReader::new(buffer)?)
     }
 }
@@ -32,7 +31,6 @@ pub struct CodeSectionReader<'a> {
 #[derive(Debug)]
 pub enum CodeReaderError {
     BinaryReaderError(BinaryReaderError),
-    InvalidCodeSize,
 }
 
 impl From<BinaryReaderError> for CodeReaderError {
@@ -57,12 +55,7 @@ impl<'a> CodeSectionReader<'a> {
     }
 
     fn read_code(&mut self) -> Result<Code> {
-        let size_bytes = self.reader.read_u32()? as usize;
-        if self.reader.position + size_bytes > self.reader.buffer.len() {
-            return Err(InvalidCodeSize)
-        }
-        let data = &self.reader.buffer[self.reader.position..self.reader.position + size_bytes];
-        self.reader.position += size_bytes;
+        let data = self.reader.read_bytes_vec()?;
         Ok(Code { data })
     }
 }

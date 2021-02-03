@@ -23,7 +23,7 @@ impl<'a> CustomSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<CustomSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
         let name = reader.read_string()?;
-        let data = &buffer[reader.position..];
+        let data = &buffer[reader.get_position()..];
         Ok(CustomSectionReader { reader, name, data })
     }
 
