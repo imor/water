@@ -14,7 +14,7 @@ pub use crate::readers::start_section::{StartReaderError, StartSectionReader};
 pub use crate::readers::table_section::{TableReaderError, TableSectionReader};
 pub use crate::readers::type_section::{TypeReaderError, TypeSectionReader};
 
-mod preamble;
+pub(crate) mod preamble;
 mod custom_section;
 mod type_section;
 mod import_section;

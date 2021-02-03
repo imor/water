@@ -40,19 +40,19 @@ pub enum Chunk<'a> {
 #[derive(PartialEq, Eq, Debug)]
 pub enum ParseError {
     UnneededBytes,
-    BinaryReaderError(BinaryReaderError),
-    PreambleReaderError(PreambleReaderError),
+    BinaryReader(BinaryReaderError),
+    PreambleReader(PreambleReaderError),
 }
 
 impl From<BinaryReaderError> for ParseError {
     fn from(e: BinaryReaderError) -> Self {
-        BinaryReaderError(e)
+        BinaryReader(e)
     }
 }
 
 impl From<PreambleReaderError> for ParseError {
     fn from(e: PreambleReaderError) -> Self {
-        PreambleReaderError(e)
+        PreambleReader(e)
     }
 }
 
@@ -130,37 +130,40 @@ impl Default for Parser {
 #[cfg(test)]
 mod tests {
     use crate::Parser;
-    use crate::readers::binary::BinaryReaderError::{UnexpectedEof, BadVersion};
+    use crate::readers::binary::BinaryReaderError::UnexpectedEof;
     use crate::Chunk::Header;
-    use crate::ParseError::{BinaryReaderError, PreambleReaderError};
-    use crate::preamble::PreambleReaderError::BadVersion;
+    use crate::ParseError::PreambleReader;
+    use crate::readers::preamble::PreambleReaderError::{BadVersion, BinaryReaderError};
 
     #[test]
     fn parse_header_from_empty() {
         let mut parser = Parser::new();
         let result = parser.parse(&[]);
-        assert_eq!(Err(BinaryReaderError(UnexpectedEof)), result);
+        let expected = Err(PreambleReader(BinaryReaderError(UnexpectedEof)));
+        assert_eq!(expected, result);
     }
 
     #[test]
     fn parse_header_bad_magic_no() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0as");
-        assert_eq!(Err(BinaryReaderError(UnexpectedEof)), result);
+        let expected = Err(PreambleReader(BinaryReaderError(UnexpectedEof)));
+        assert_eq!(expected, result);
     }
 
     #[test]
     fn parse_header_only_magic_no() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0asm");
-        assert_eq!(Err(BinaryReaderError(UnexpectedEof)), result);
+        let expected = Err(PreambleReader(BinaryReaderError(UnexpectedEof)));
+        assert_eq!(expected, result);
     }
 
     #[test]
     fn parse_header_bad_version() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0asm\x02\0\0\0");
-        assert_eq!(Err(PreambleReaderError(BadVersion)), result);
+        assert_eq!(Err(PreambleReader(BadVersion)), result);
     }
 
     #[test]
