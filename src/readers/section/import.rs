@@ -26,7 +26,7 @@ pub type Result<T, E = ImportReaderError> = result::Result<T, E>;
 impl<'a> ImportSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<ImportSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_u32()?;
+        let count = reader.read_leb128_u32()?;
         Ok(ImportSectionReader { reader, count })
     }
 
@@ -44,7 +44,7 @@ impl<'a> ImportSectionReader<'a> {
     fn read_import_desc(&mut self) -> Result<ImportDescriptor> {
         match self.reader.read_byte()? {
             0x00 => {
-                let type_index = TypeIndex(self.reader.read_u32()?);
+                let type_index = TypeIndex(self.reader.read_leb128_u32()?);
                 Ok(ImportDescriptor::Func{ type_index })
             },
             0x01 => {

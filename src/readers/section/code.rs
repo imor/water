@@ -42,7 +42,7 @@ impl From<BinaryReaderError> for CodeReaderError {
 impl<'a> CodeSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<CodeSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_u32()?;
+        let count = reader.read_leb128_u32()?;
         Ok(CodeSectionReader { reader, count })
     }
 
@@ -68,7 +68,7 @@ pub struct LocalsReader<'a> {
 impl<'a> LocalsReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<LocalsReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_u32()?;
+        let count = reader.read_leb128_u32()?;
         Ok(LocalsReader { reader, count })
     }
 
@@ -77,7 +77,7 @@ impl<'a> LocalsReader<'a> {
     }
 
     pub fn read(&mut self) -> Result<Locals> {
-        let count = self.reader.read_u32()?;
+        let count = self.reader.read_leb128_u32()?;
         let value_type = self.reader.read_value_type()?;
         Ok(Locals { count, value_type })
     }

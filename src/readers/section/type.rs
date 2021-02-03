@@ -26,7 +26,7 @@ pub type Result<T, E = TypeReaderError> = result::Result<T, E>;
 impl<'a> TypeSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<TypeSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_u32()?;
+        let count = reader.read_leb128_u32()?;
         Ok(TypeSectionReader { reader, count })
     }
 
@@ -49,7 +49,7 @@ impl<'a> TypeSectionReader<'a> {
     }
 
     fn read_types_vec(&mut self) -> Result<Box<[ValueType]>> {
-        let len = self.reader.read_u32()?;
+        let len = self.reader.read_leb128_u32()?;
         let mut types = Vec::with_capacity(len as usize);
         for _ in 0..len {
             types.push(self.reader.read_value_type()?);

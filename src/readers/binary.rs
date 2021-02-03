@@ -74,7 +74,7 @@ impl<'a> BinaryReader<'a> {
         Ok(bytes[0])
     }
 
-    pub(crate) fn read_u32(&mut self) -> Result<u32> {
+    pub(crate) fn read_leb128_u32(&mut self) -> Result<u32> {
         let mut result: u32 = 0;
         let mut shift = 0;
         loop {
@@ -92,7 +92,7 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub(crate) fn read_s33(&mut self) -> Result<i64> {
+    pub(crate) fn read_leb128_s33(&mut self) -> Result<i64> {
         let mut result: i64 = 0;
         let mut shift = 0;
         loop {
@@ -125,7 +125,7 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub(crate) fn read_s32(&mut self) -> Result<i32> {
+    pub(crate) fn read_leb128_s32(&mut self) -> Result<i32> {
         let mut result: i32 = 0;
         let mut shift = 0;
         loop {
@@ -155,7 +155,7 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub(crate) fn read_s64(&mut self) -> Result<i64> {
+    pub(crate) fn read_leb128_s64(&mut self) -> Result<i64> {
         let mut result: i64 = 0;
         let mut shift = 0;
         loop {
@@ -202,7 +202,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_string(&mut self) -> Result<&'a str> {
-        let len = self.read_u32()? as usize;
+        let len = self.read_leb128_u32()? as usize;
         let bytes = self.read_bytes(len)?;
         str::from_utf8(bytes).map_err(|_| BinaryReaderError::InvalidUtf8)
     }
@@ -253,13 +253,13 @@ impl<'a> BinaryReader<'a> {
     fn read_limits(&mut self) -> Result<Limits> {
         match self.read_byte()? {
             0x00 => {
-                let min = self.read_u32()?;
+                let min = self.read_leb128_u32()?;
                 let max = None;
                 Ok(Limits { min, max })
             },
             0x01 => {
-                let min = self.read_u32()?;
-                let max = Some(self.read_u32()?);
+                let min = self.read_leb128_u32()?;
+                let max = Some(self.read_leb128_u32()?);
                 Ok(Limits { min, max })
             },
             _ => Err(InvalidLimitsByte)
@@ -275,7 +275,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn read_bytes_vec(&mut self) -> Result<&'a [u8]> {
-        let len = self.read_u32()? as usize;
+        let len = self.read_leb128_u32()? as usize;
         let start = self.get_position();
         let end = start + len;
         self.position += len;
@@ -325,7 +325,7 @@ mod tests {
         for i in 0..=u32::max_value() {
             let encoded = encode_u32(i);
             let mut reader = BinaryReader::new(&encoded);
-            let actual_result: Result<u32, BinaryReaderError> = reader.read_u32();
+            let actual_result: Result<u32, BinaryReaderError> = reader.read_leb128_u32();
             assert_eq!(Ok(i), actual_result);
             if i % lot_size == 0 {
                 println!("Done {} lots of {}", lot, u32::max_value() / lot_size);
@@ -348,7 +348,7 @@ mod tests {
             last_byte |= 0b1000_0000;
             encoded[4] = last_byte;
             let mut reader = BinaryReader::new(&encoded);
-            let actual_result: Result<u32, BinaryReaderError> = reader.read_u32();
+            let actual_result: Result<u32, BinaryReaderError> = reader.read_leb128_u32();
             assert_eq!(Err(InvalidU32), actual_result);
             if i % lot_size == 0 {
                 println!("Done {} lots of {}", lot, total / lot_size);
@@ -385,7 +385,7 @@ mod tests {
         for i in i32::min_value()..=i32::max_value() {
             let encoded = encode_s32(i);
             let mut reader = BinaryReader::new(&encoded);
-            let actual_result: Result<i32, BinaryReaderError> = reader.read_s32();
+            let actual_result: Result<i32, BinaryReaderError> = reader.read_leb128_s32();
             assert_eq!(Ok(i), actual_result);
             if i % lot_size == 0 {
                 println!("Done {} lots of {}", lot, u32::max_value() / lot_size as u32);
@@ -424,7 +424,7 @@ mod tests {
         for i in min..max {
             let encoded = encode_s33(i);
             let mut reader = BinaryReader::new(&encoded);
-            let actual_result: Result<i64, BinaryReaderError> = reader.read_s33();
+            let actual_result: Result<i64, BinaryReaderError> = reader.read_leb128_s33();
             assert_eq!(Ok(i), actual_result);
             if i % lot_size == 0 {
                 println!("Done {} lots of {}", lot, 2 * max / lot_size);
@@ -451,7 +451,7 @@ mod tests {
             for i in r {
                 let encoded = encode_s64(i);
                 let mut reader = BinaryReader::new(&encoded);
-                let actual_result: Result<i64, BinaryReaderError> = reader.read_s64();
+                let actual_result: Result<i64, BinaryReaderError> = reader.read_leb128_s64();
                 assert_eq!(Ok(i), actual_result);
                 if i % lot_size == 0 {
                     println!("Done {} lots of {}", lot, total / lot_size);

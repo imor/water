@@ -56,11 +56,11 @@ impl<'a> InstructionReader<'a> {
             0x05 => Ok(Instruction::Else),
             0x0B => Ok(Instruction::End),
             0x0C => {
-                let label_index = LabelIndex(self.reader.read_u32()?);
+                let label_index = LabelIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::Branch { label_index })
             },
             0x0D => {
-                let label_index = LabelIndex(self.reader.read_u32()?);
+                let label_index = LabelIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::BranchIf { label_index })
             },
             0x0E => {
@@ -69,11 +69,11 @@ impl<'a> InstructionReader<'a> {
             },
             0x0F => Ok(Instruction::Return),
             0x10 => {
-                let func_index = FuncIndex(self.reader.read_u32()?);
+                let func_index = FuncIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::Call { func_index })
             },
             0x11 => {
-                let type_index = TypeIndex(self.reader.read_u32()?);
+                let type_index = TypeIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::CallIndirect { type_index })
             },
 
@@ -81,23 +81,23 @@ impl<'a> InstructionReader<'a> {
             0x1B => Ok(Instruction::Select),
 
             0x20 => {
-                let local_index = LocalIndex(self.reader.read_u32()?);
+                let local_index = LocalIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::LocalGet { local_index })
             },
             0x21 => {
-                let local_index = LocalIndex(self.reader.read_u32()?);
+                let local_index = LocalIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::LocalSet { local_index })
             },
             0x22 => {
-                let local_index = LocalIndex(self.reader.read_u32()?);
+                let local_index = LocalIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::LocalTee { local_index })
             },
             0x23 => {
-                let global_index = GlobalIndex(self.reader.read_u32()?);
+                let global_index = GlobalIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::GlobalGet { global_index })
             },
             0x24 => {
-                let global_index = GlobalIndex(self.reader.read_u32()?);
+                let global_index = GlobalIndex(self.reader.read_leb128_u32()?);
                 Ok(Instruction::GlobalSet { global_index })
             },
 
@@ -208,11 +208,11 @@ impl<'a> InstructionReader<'a> {
                 }
             },
             0x41 => {
-                let val = self.reader.read_s32()?;
+                let val = self.reader.read_leb128_s32()?;
                 Ok(Instruction::I32Const(val))
             },
             0x42 => {
-                let val = self.reader.read_s64()?;
+                let val = self.reader.read_leb128_s64()?;
                 Ok(Instruction::I64Const(val))
             },
             0x43 => {
@@ -363,7 +363,7 @@ impl<'a> InstructionReader<'a> {
             0xC4 => Ok(Instruction::I64Extend32s),
 
             0xFC => {
-                match self.reader.read_u32()? {
+                match self.reader.read_leb128_u32()? {
                     0 => Ok(Instruction::I32TruncSatF32s),
                     1 => Ok(Instruction::I32TruncSatF32u),
                     2 => Ok(Instruction::I32TruncSatF64s),
@@ -381,8 +381,8 @@ impl<'a> InstructionReader<'a> {
     }
 
     fn read_memory_argument(&mut self) -> Result<MemoryArgument> {
-        let alignment = self.reader.read_u32()?;
-        let offset = self.reader.read_u32()?;
+        let alignment = self.reader.read_leb128_u32()?;
+        let offset = self.reader.read_leb128_u32()?;
         Ok(MemoryArgument { alignment, offset })
     }
 
@@ -393,7 +393,7 @@ impl<'a> InstructionReader<'a> {
             match self.reader.read_byte()? {
                 0x40 => Ok(BlockType::Empty),
                 _ => {
-                    let index = self.reader.read_s33()?;
+                    let index = self.reader.read_leb128_s33()?;
                     if index < 0 || index > u32::max_value() as i64 {
                         Err(InvalidBlockTypeIndex)
                     } else {

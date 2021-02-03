@@ -26,7 +26,7 @@ pub type Result<T, E = ExportReaderError> = result::Result<T, E>;
 impl<'a> ExportSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<ExportSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_u32()?;
+        let count = reader.read_leb128_u32()?;
         Ok(ExportSectionReader { reader, count })
     }
 
@@ -43,19 +43,19 @@ impl<'a> ExportSectionReader<'a> {
     fn read_export_desc(&mut self) -> Result<ExportDescriptor> {
         match self.reader.read_byte()? {
             0x00 => {
-                let func_index = FuncIndex(self.reader.read_u32()?);
+                let func_index = FuncIndex(self.reader.read_leb128_u32()?);
                 Ok(ExportDescriptor::Func { func_index })
             },
             0x01 => {
-                let table_index = TableIndex(self.reader.read_u32()?);
+                let table_index = TableIndex(self.reader.read_leb128_u32()?);
                 Ok(ExportDescriptor::Table { table_index })
             },
             0x02 => {
-                let memory_index = MemoryIndex(self.reader.read_u32()?);
+                let memory_index = MemoryIndex(self.reader.read_leb128_u32()?);
                 Ok(ExportDescriptor::Memory { memory_index })
             },
             0x03 => {
-                let global_index = GlobalIndex(self.reader.read_u32()?);
+                let global_index = GlobalIndex(self.reader.read_leb128_u32()?);
                 Ok(ExportDescriptor::Global { global_index })
             },
             _ => Err(ExportReaderError::InvalidExportDescByte)

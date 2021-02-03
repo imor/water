@@ -25,7 +25,7 @@ pub type Result<T, E = ElementReaderError> = result::Result<T, E>;
 impl<'a> ElementSectionReader<'a> {
     pub(crate) fn new(buffer: &'a [u8]) -> BinaryReaderResult<ElementSectionReader<'a>> {
         let mut reader = BinaryReader::new(buffer);
-        let count = reader.read_u32()?;
+        let count = reader.read_leb128_u32()?;
         Ok(ElementSectionReader { reader, count })
     }
 
@@ -38,12 +38,12 @@ impl<'a> ElementSectionReader<'a> {
     }
 
     fn read_element_segment(&mut self) -> Result<ElementSegment> {
-        let table_index = TableIndex(self.reader.read_u32()?);
+        let table_index = TableIndex(self.reader.read_leb128_u32()?);
         let instruction_reader = self.reader.create_instruction_reader()?;
-        let len = self.reader.read_u32()?;
+        let len = self.reader.read_leb128_u32()?;
         let mut func_indices = Vec::with_capacity(len as usize);
         for _ in 0..len {
-            let func_index = FuncIndex(self.reader.read_u32()?);
+            let func_index = FuncIndex(self.reader.read_leb128_u32()?);
             func_indices.push(func_index);
         }
 
