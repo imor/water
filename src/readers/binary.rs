@@ -40,7 +40,7 @@ impl<'a> BinaryReader<'a> {
         self.position
     }
 
-    pub fn eof(&self) -> bool {
+    pub(crate) fn eof(&self) -> bool {
         self.position >= self.buffer.len()
     }
 
@@ -69,12 +69,12 @@ impl<'a> BinaryReader<'a> {
         Ok(word)
     }
 
-    pub fn read_byte(&mut self) -> Result<u8> {
+    pub(crate) fn read_byte(&mut self) -> Result<u8> {
         let bytes = self.read_bytes(1)?;
         Ok(bytes[0])
     }
 
-    pub fn read_u32(&mut self) -> Result<u32> {
+    pub(crate) fn read_u32(&mut self) -> Result<u32> {
         let mut result: u32 = 0;
         let mut shift = 0;
         loop {
@@ -92,7 +92,7 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub fn read_s33(&mut self) -> Result<i64> {
+    pub(crate) fn read_s33(&mut self) -> Result<i64> {
         let mut result: i64 = 0;
         let mut shift = 0;
         loop {
@@ -125,7 +125,7 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub fn read_s32(&mut self) -> Result<i32> {
+    pub(crate) fn read_s32(&mut self) -> Result<i32> {
         let mut result: i32 = 0;
         let mut shift = 0;
         loop {
@@ -155,7 +155,7 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub fn read_s64(&mut self) -> Result<i64> {
+    pub(crate) fn read_s64(&mut self) -> Result<i64> {
         let mut result: i64 = 0;
         let mut shift = 0;
         loop {
@@ -185,29 +185,29 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    pub fn read_f32(&mut self) -> Result<f32> {
+    pub(crate) fn read_f32(&mut self) -> Result<f32> {
         let bytes = self.read_bytes(4)?;
         let bytes = <[u8; 4]>::try_from(bytes).unwrap();
         Ok(f32::from_le_bytes(bytes))
     }
 
-    pub fn read_f64(&mut self) -> Result<f64> {
+    pub(crate) fn read_f64(&mut self) -> Result<f64> {
         let bytes = self.read_bytes(8)?;
         let bytes = <[u8; 8]>::try_from(bytes).unwrap();
         Ok(f64::from_le_bytes(bytes))
     }
 
-    pub fn create_branch_table_reader(&mut self) -> Result<BranchTableReader> {
+    pub(crate) fn create_branch_table_reader(&mut self) -> Result<BranchTableReader> {
         BranchTableReader::new(self.buffer)
     }
 
-    pub fn read_string(&mut self) -> Result<&'a str> {
+    pub(crate) fn read_string(&mut self) -> Result<&'a str> {
         let len = self.read_u32()? as usize;
         let bytes = self.read_bytes(len)?;
         str::from_utf8(bytes).map_err(|_| BinaryReaderError::InvalidUtf8)
     }
 
-    pub fn read_table_type(&mut self) -> Result<TableType> {
+    pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
         match self.read_byte()? {
             0x70 => {
                 let limits = self.read_limits()?;
@@ -217,12 +217,12 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn read_memory_type(&mut self) -> Result<MemoryType> {
+    pub(crate) fn read_memory_type(&mut self) -> Result<MemoryType> {
         let limits = self.read_limits()?;
         Ok(MemoryType { limits })
     }
 
-    pub fn read_global_type(&mut self) -> Result<GlobalType> {
+    pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {
         let tp = self.read_value_type()?;
         let mutable = self.read_mutable_byte()?;
         Ok(GlobalType { var_type: tp, mutable })
@@ -266,7 +266,7 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn create_buffer_slice(&self, start: usize, end: usize) -> Result<&'a [u8]> {
+    pub(crate) fn create_buffer_slice(&self, start: usize, end: usize) -> Result<&'a [u8]> {
         if end > self.buffer.len() {
             Err(InvalidBufferSliceArgs)
         } else {
@@ -274,7 +274,7 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    pub fn read_bytes_vec(&mut self) -> Result<&'a [u8]> {
+    pub(crate) fn read_bytes_vec(&mut self) -> Result<&'a [u8]> {
         let len = self.read_u32()? as usize;
         let start = self.get_position();
         let end = start + len;
@@ -282,7 +282,7 @@ impl<'a> BinaryReader<'a> {
         self.create_buffer_slice(start, end)
     }
 
-    pub fn create_instruction_reader(&mut self) -> Result<InstructionReader<'a>> {
+    pub(crate) fn create_instruction_reader(&mut self) -> Result<InstructionReader<'a>> {
         let before = self.position;
         loop {
             match self.read_byte()? {
