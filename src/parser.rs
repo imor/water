@@ -1,6 +1,6 @@
 use crate::readers::binary::{BinaryReader, BinaryReaderError};
-use crate::ParseError::{InnerError, UnneededBytes};
-use crate::{CustomSectionReader, CodeSectionReader};
+use crate::ParseError::*;
+use crate::{CustomSectionReader, CodeSectionReader, PreambleReaderError};
 use crate::TypeSectionReader;
 use crate::ImportSectionReader;
 use crate::FunctionSectionReader;
@@ -11,6 +11,7 @@ use crate::ExportSectionReader;
 use crate::StartSectionReader;
 use crate::ElementSectionReader;
 use crate::DataSectionReader;
+use crate::PreambleReader;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum SectionReader<'a> {
@@ -39,12 +40,19 @@ pub enum Chunk<'a> {
 #[derive(PartialEq, Eq, Debug)]
 pub enum ParseError {
     UnneededBytes,
-    InnerError(BinaryReaderError),
+    BinaryReaderError(BinaryReaderError),
+    PreambleReaderError(PreambleReaderError),
 }
 
 impl From<BinaryReaderError> for ParseError {
     fn from(e: BinaryReaderError) -> Self {
-        InnerError(e)
+        BinaryReaderError(e)
+    }
+}
+
+impl From<PreambleReaderError> for ParseError {
+    fn from(e: PreambleReaderError) -> Self {
+        PreambleReaderError(e)
     }
 }
 
@@ -66,10 +74,10 @@ impl Parser {
     }
 
     pub fn parse<'a>(&mut self, buffer: &'a [u8]) -> Result<(usize, Chunk<'a>), ParseError> {
-        let mut reader = BinaryReader::new(buffer);
         match self.location {
             ParserLocation::ModuleHeader => {
-                let (consumed, version) = reader.read_file_header()?;
+                let mut preamble_reader = PreambleReader::new(buffer);
+                let (consumed, version) = preamble_reader.read_preamble()?;
                 self.location = ParserLocation::Section;
                 Ok((consumed, Chunk::Header(version)))
             },
@@ -78,6 +86,7 @@ impl Parser {
                     self.location = ParserLocation::End;
                     Ok((0, Chunk::Done))
                 } else {
+                    let mut reader = BinaryReader::new(buffer);
                     let id = reader.read_byte()?;
                     let bytes = reader.read_bytes_vec()?;
                     Ok((reader.get_position(), Chunk::Section(Self::create_section_reader(bytes, id)?)))
@@ -123,34 +132,35 @@ mod tests {
     use crate::Parser;
     use crate::readers::binary::BinaryReaderError::{UnexpectedEof, BadVersion};
     use crate::Chunk::Header;
-    use crate::ParseError::InnerError;
+    use crate::ParseError::{BinaryReaderError, PreambleReaderError};
+    use crate::preamble::PreambleReaderError::BadVersion;
 
     #[test]
     fn parse_header_from_empty() {
         let mut parser = Parser::new();
         let result = parser.parse(&[]);
-        assert_eq!(Err(InnerError(UnexpectedEof)), result);
+        assert_eq!(Err(BinaryReaderError(UnexpectedEof)), result);
     }
 
     #[test]
     fn parse_header_bad_magic_no() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0as");
-        assert_eq!(Err(InnerError(UnexpectedEof)), result);
+        assert_eq!(Err(BinaryReaderError(UnexpectedEof)), result);
     }
 
     #[test]
     fn parse_header_only_magic_no() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0asm");
-        assert_eq!(Err(InnerError(UnexpectedEof)), result);
+        assert_eq!(Err(BinaryReaderError(UnexpectedEof)), result);
     }
 
     #[test]
     fn parse_header_bad_version() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0asm\x02\0\0\0");
-        assert_eq!(Err(InnerError(BadVersion)), result);
+        assert_eq!(Err(PreambleReaderError(BadVersion)), result);
     }
 
     #[test]

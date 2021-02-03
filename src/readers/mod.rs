@@ -1,3 +1,4 @@
+pub use crate::readers::preamble::{PreambleReaderError, PreambleReader};
 pub use crate::readers::branch_table::{BranchReaderError, BranchTableReader};
 pub use crate::readers::code_section::{CodeReaderError, CodeSectionReader};
 pub use crate::readers::custom_section::{CustomReaderError, CustomSectionReader};
@@ -13,6 +14,7 @@ pub use crate::readers::start_section::{StartReaderError, StartSectionReader};
 pub use crate::readers::table_section::{TableReaderError, TableSectionReader};
 pub use crate::readers::type_section::{TypeReaderError, TypeSectionReader};
 
+mod preamble;
 mod custom_section;
 mod type_section;
 mod import_section;
