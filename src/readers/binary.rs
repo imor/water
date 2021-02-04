@@ -19,7 +19,6 @@ pub enum BinaryReaderError {
     InvalidLimitsByte,
     InvalidValueTypeByte,
     InvalidMutableByte,
-    InvalidBufferSliceArgs,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -268,7 +267,7 @@ impl<'a> BinaryReader<'a> {
 
     pub(crate) fn create_buffer_slice(&self, start: usize, end: usize) -> Result<&'a [u8]> {
         if end > self.buffer.len() {
-            Err(InvalidBufferSliceArgs)
+            Err(UnexpectedEof)
         } else {
             Ok(&self.buffer[start..end])
         }
