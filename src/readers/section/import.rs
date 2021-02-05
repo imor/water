@@ -10,7 +10,7 @@ pub struct ImportSectionReader<'a> {
     count: u32,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum ImportReaderError {
     BinaryReaderError(BinaryReaderError),
     InvalidImportDescByte,

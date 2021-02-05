@@ -45,9 +45,9 @@ pub enum ImportDescriptor {
 
 #[derive(Debug)]
 pub struct Import<'a> {
-    pub(crate) module_name: &'a str,
-    pub(crate) name: &'a str,
-    pub(crate) import_descriptor: ImportDescriptor
+    pub module_name: &'a str,
+    pub name: &'a str,
+    pub import_descriptor: ImportDescriptor
 }
 
 #[derive(Debug)]

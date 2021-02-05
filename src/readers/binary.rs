@@ -439,7 +439,7 @@ mod tests {
     #[test]
     fn s64_roundtrip() {
         let mut lot = 1;
-        let lot_size = 1000000;
+        let lot_size = 100000;
         let ranges = vec![
             -9_223_372_036_854_775_808..-9_223_372_036_854_775_808+lot_size,
             -lot_size..lot_size,

@@ -163,10 +163,10 @@ mod tests {
     #[test]
     fn parse_header_bad_version() {
         let mut parser = Parser::new();
-        let validator = Validator::new();
+        let mut validator = Validator::new();
         let result = parser.parse(b"\0asm\x02\0\0\0").unwrap();
         let actual = validator.validate(&result.1);
-        let expected = Err(ValidationError::Preamble(PreambleValidationError::BadVersion));
+        let expected = Err(ValidationError::PreambleValidation(PreambleValidationError::BadVersion));
         assert_eq!(expected, actual);
     }
 

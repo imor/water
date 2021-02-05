@@ -120,7 +120,7 @@ fn main() -> Result<(), MyError> {
     reader.read_to_end(&mut v)?;
 
     let mut parser = Parser::new();
-    let validator = Validator::new();
+    let mut validator = Validator::new();
 
     loop {
         let parse_result = parser.parse(&v)?;
