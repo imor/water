@@ -21,3 +21,4 @@ mod branch_table;
 mod instruction;
 pub mod binary;
 mod section;
+mod common;

@@ -135,13 +135,12 @@ fn main() -> Result<(), MyError> {
                     SectionReader::Custom(reader) => {
                         println!("Found custom section with name {} and {} bytes data.", reader.get_name(), reader.get_data().len());
                     },
-                    SectionReader::Type(mut reader) => {
+                    SectionReader::Type(reader) => {
                         println!("Found type section.");
                         let count = reader.get_count();
                         println!("Found {} types", count);
-                        for _ in 0..count {
-                            let func_type = reader.read()?;
-                            println!("Found func type {:?}", func_type);
+                        for tipe in reader.into_iter() {
+                            println!("Found func type {:?}", tipe);
                         }
                     },
                     SectionReader::Import(mut reader) => {
