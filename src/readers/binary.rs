@@ -21,7 +21,7 @@ pub enum BinaryReaderError {
     InvalidMutableByte,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct BinaryReader<'a> {
     buffer: &'a [u8],
     position: usize,

@@ -3,7 +3,7 @@ use crate::types::{FunctionType, ValueType};
 use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TypeSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,

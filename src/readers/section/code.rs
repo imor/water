@@ -22,7 +22,7 @@ impl<'a> Code<'a> {
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct CodeSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,

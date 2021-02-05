@@ -3,7 +3,7 @@ use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 use crate::types::TableType;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TableSectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,

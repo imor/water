@@ -3,7 +3,7 @@ use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 use crate::types::MemoryType;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct MemorySectionReader<'a> {
     reader: BinaryReader<'a>,
     count: u32,

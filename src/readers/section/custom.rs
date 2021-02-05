@@ -1,7 +1,7 @@
 use crate::readers::binary::{BinaryReader, BinaryReaderError};
 use crate::readers::binary::Result as BinaryReaderResult;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct CustomSectionReader<'a> {
     reader: BinaryReader<'a>,
     name: &'a str,

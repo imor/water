@@ -124,7 +124,7 @@ fn main() -> Result<(), MyError> {
 
     loop {
         let parse_result = parser.parse(&v)?;
-        let _ = validator.validate(&parse_result.1)?;
+        let _ = validator.validate(&parse_result.1.clone())?;
         let consumed = match parse_result {
             (consumed, Chunk::Preamble(magic_number, version)) => {
                 println!("Found header with magic_number: {:?} and version {}", magic_number, version);

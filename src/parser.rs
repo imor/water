@@ -13,7 +13,7 @@ use crate::ElementSectionReader;
 use crate::DataSectionReader;
 use crate::PreambleReader;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum SectionReader<'a> {
     Custom(CustomSectionReader<'a>),
     Type(TypeSectionReader<'a>),
@@ -30,7 +30,7 @@ pub enum SectionReader<'a> {
     Unknown(u8),
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Chunk<'a> {
     Preamble(&'a [u8;4], u32),
     Section(SectionReader<'a>),
