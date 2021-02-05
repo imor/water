@@ -32,7 +32,7 @@ pub enum SectionReader<'a> {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Chunk<'a> {
-    Header(u32),
+    Preamble(&'a [u8;4], u32),
     Section(SectionReader<'a>),
     Done,
 }
@@ -77,9 +77,9 @@ impl Parser {
         match self.location {
             ParserLocation::ModuleHeader => {
                 let mut preamble_reader = PreambleReader::new(buffer);
-                let (consumed, version) = preamble_reader.read_preamble()?;
+                let (consumed, magic_number, version) = preamble_reader.read_preamble()?;
                 self.location = ParserLocation::Section;
-                Ok((consumed, Chunk::Header(version)))
+                Ok((consumed, Chunk::Preamble(magic_number, version)))
             },
             ParserLocation::Section => {
                 if buffer.is_empty() {
@@ -129,11 +129,12 @@ impl Default for Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::Parser;
+    use crate::{Parser, Validator, ValidationError};
     use crate::readers::binary::BinaryReaderError::UnexpectedEof;
-    use crate::Chunk::Header;
+    use crate::Chunk::Preamble;
     use crate::ParseError::PreambleReader;
-    use crate::readers::preamble::PreambleReaderError::{BadVersion, BinaryReaderError};
+    use crate::readers::preamble::PreambleReaderError::BinaryReaderError;
+    use crate::validators::preamble::PreambleValidationError;
 
     #[test]
     fn parse_header_from_empty() {
@@ -162,15 +163,18 @@ mod tests {
     #[test]
     fn parse_header_bad_version() {
         let mut parser = Parser::new();
-        let result = parser.parse(b"\0asm\x02\0\0\0");
-        assert_eq!(Err(PreambleReader(BadVersion)), result);
+        let validator = Validator::new();
+        let result = parser.parse(b"\0asm\x02\0\0\0").unwrap();
+        let actual = validator.validate(&result.1);
+        let expected = Err(ValidationError::Preamble(PreambleValidationError::BadVersion));
+        assert_eq!(expected, actual);
     }
 
     #[test]
     fn parse_good_header() {
         let mut parser = Parser::new();
         let result = parser.parse(b"\0asm\x01\0\0\0");
-        assert_eq!(Ok((8, Header(1))), result);
+        assert_eq!(Ok((8, Preamble(&[b'\0', b'a', b's', b'm'], 1))), result);
     }
 
     //#[test]

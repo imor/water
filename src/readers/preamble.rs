@@ -1,15 +1,10 @@
 use std::result;
-use crate::readers::preamble::PreambleReaderError::{BadVersion, BadMagicNumber};
 use crate::readers::binary::{BinaryReader, BinaryReaderError};
-
-const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
-const WASM_SUPPORTED_VERSION: u32 = 0x1;
+use std::convert::TryFrom;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum PreambleReaderError {
     BinaryReaderError(BinaryReaderError),
-    BadVersion,
-    BadMagicNumber,
 }
 
 impl From<BinaryReaderError> for PreambleReaderError {
@@ -31,17 +26,9 @@ impl<'a> PreambleReader<'a> {
         PreambleReader { reader }
     }
 
-    pub fn read_preamble(&mut self) -> Result<(usize, u32)> {
+    pub fn read_preamble(&mut self) -> Result<(usize, &'a [u8; 4], u32)> {
         let magic_number = self.reader.read_bytes(4)?;
-        if magic_number == WASM_MAGIC_NUMBER {
-            let version = self.reader.read_double_word()?;
-            if version == WASM_SUPPORTED_VERSION {
-                Ok((self.reader.get_position(), version))
-            } else {
-                Err(BadVersion)
-            }
-        } else {
-            Err(BadMagicNumber)
-        }
+        let version = self.reader.read_double_word()?;
+        Ok((self.reader.get_position(), <&[u8; 4]>::try_from(magic_number).unwrap(), version))
     }
 }

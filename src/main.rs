@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError, InstructionReaderError, Instruction, CodeReaderError};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError, InstructionReaderError, Instruction, CodeReaderError, Validator, ValidationError};
 
 #[derive(Debug)]
 enum MyError {
@@ -19,6 +19,7 @@ enum MyError {
     CodeReader(CodeReaderError),
     DataReader(DataReaderError),
     InstructionReader(InstructionReaderError),
+    Validation(ValidationError),
 }
 
 impl From<io::Error> for MyError {
@@ -105,6 +106,12 @@ impl From<InstructionReaderError> for MyError {
     }
 }
 
+impl From<ValidationError> for MyError {
+    fn from(e: ValidationError) -> Self {
+        MyError::Validation(e)
+    }
+}
+
 fn main() -> Result<(), MyError> {
     // let f = File::open("hello.wasm")?;
     let f = File::open("C:/Users/raminder.singh/Downloads/main_bg.wasm")?;
@@ -113,11 +120,14 @@ fn main() -> Result<(), MyError> {
     reader.read_to_end(&mut v)?;
 
     let mut parser = Parser::new();
+    let validator = Validator::new();
 
     loop {
-        let consumed = match parser.parse(&v)? {
-            (consumed, Chunk::Header(version)) => {
-                println!("Found header with version {}", version);
+        let parse_result = parser.parse(&v)?;
+        let _ = validator.validate(&parse_result.1)?;
+        let consumed = match parse_result {
+            (consumed, Chunk::Preamble(magic_number, version)) => {
+                println!("Found header with magic_number: {:?} and version {}", magic_number, version);
                 consumed
             },
             (consumed, Chunk::Section(section)) => {
