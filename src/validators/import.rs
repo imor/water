@@ -39,5 +39,10 @@ pub(crate) fn validate_import_desc(import_desc: ImportDescriptor, max_type_index
 }
 
 fn limits_in_range(limits: &Limits, range: u32) -> bool {
-    limits.min <= range && (limits.max.is_none() || limits.max.unwrap() <= range)
+    let min = limits.min;
+    min <= range && if let Some(max) = limits.max {
+        max <= range && min <= max
+    } else {
+        true
+    }
 }
