@@ -29,10 +29,15 @@ impl Validator {
             }
             Chunk::Section(ref section_reader) => {
                 match section_reader {
-                    SectionReader::Type(_type_section_reader) => {
-
+                    SectionReader::Type(reader) => {
+                        for tipe in reader.clone().into_iter() {
+                            println!("In validator - Found func type {:?}", tipe);
+                        }
                     }
-                    SectionReader::Import(_import_section_reader) => {
+                    SectionReader::Import(reader) => {
+                        for import in reader.clone().into_iter() {
+                            println!("In validator - Found import {:?}", import);
+                        }
                     },
                     _ => {}
                 }

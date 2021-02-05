@@ -124,7 +124,7 @@ fn main() -> Result<(), MyError> {
 
     loop {
         let parse_result = parser.parse(&v)?;
-        let _ = validator.validate(&parse_result.1.clone())?;
+        let _ = validator.validate(&parse_result.1)?;
         let consumed = match parse_result {
             (consumed, Chunk::Preamble(magic_number, version)) => {
                 println!("Found header with magic_number: {:?} and version {}", magic_number, version);
@@ -137,17 +137,13 @@ fn main() -> Result<(), MyError> {
                     },
                     SectionReader::Type(reader) => {
                         println!("Found type section.");
-                        let count = reader.get_count();
-                        println!("Found {} types", count);
                         for tipe in reader.into_iter() {
                             println!("Found func type {:?}", tipe);
                         }
                     },
-                    SectionReader::Import(mut reader) => {
+                    SectionReader::Import(reader) => {
                         println!("Found import section.");
-                        let count = reader.get_count();
-                        for _ in 0..count {
-                            let import = reader.read()?;
+                        for import in reader.into_iter() {
                             println!("Found import {:?}", import);
                         }
                     },

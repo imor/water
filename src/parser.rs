@@ -30,7 +30,7 @@ pub enum SectionReader<'a> {
     Unknown(u8),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Chunk<'a> {
     Preamble(&'a [u8;4], u32),
     Section(SectionReader<'a>),
