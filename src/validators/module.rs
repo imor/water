@@ -1,4 +1,4 @@
-use crate::Chunk;
+use crate::{Chunk, SectionReader};
 use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 
@@ -27,7 +27,16 @@ impl Validator {
             Chunk::Preamble(magic_number, version) => {
                 validate_preamble(magic_number, version)?
             }
-            Chunk::Section(_) => {}
+            Chunk::Section(ref section_reader) => {
+                match section_reader {
+                    SectionReader::Type(_type_section_reader) => {
+
+                    }
+                    SectionReader::Import(_import_section_reader) => {
+                    },
+                    _ => {}
+                }
+            }
             Chunk::Done => {}
         }
         Ok(())
