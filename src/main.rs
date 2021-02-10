@@ -165,11 +165,9 @@ fn main() -> Result<(), MyError> {
                             println!("Found memory {:?}", memory);
                         }
                     },
-                    SectionReader::Global(mut reader) => {
+                    SectionReader::Global(reader) => {
                         println!("Found global section.");
-                        let count = reader.get_count();
-                        for _ in 0..count {
-                            let global = reader.read()?;
+                        for global in reader {
                             println!("Found global {:?}", global);
                         }
                     },
