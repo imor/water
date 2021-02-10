@@ -1,4 +1,4 @@
-use crate::types::Limits;
+use crate::types::{Limits, MemoryType};
 use crate::validators::memory::MemoryLimitsValidationError::InvalidMemoryLimits;
 
 fn limits_in_range(limits: &Limits, range: u32) -> bool {
@@ -15,7 +15,8 @@ pub enum MemoryLimitsValidationError {
     InvalidMemoryLimits,
 }
 
-pub fn validate_memory_limits(limits: &Limits) -> Result<(), MemoryLimitsValidationError> {
+pub fn validate_memory_type(memory: &MemoryType) -> Result<(), MemoryLimitsValidationError> {
+    let MemoryType { limits } = memory;
     if !limits_in_range(limits, 65536) {
         return Err(InvalidMemoryLimits);
     }

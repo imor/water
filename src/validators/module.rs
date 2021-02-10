@@ -5,6 +5,7 @@ use std::cmp::max;
 use crate::validators::import::{validate_import_desc, ImportValidationError};
 use crate::validators::type_index::{validate_type_index, TypeIndexValidationError};
 use crate::types::TypeIndex;
+use crate::validators::memory::{validate_memory_type, MemoryLimitsValidationError};
 
 pub struct Validator {
     max_type_index: Option<TypeIndex>,
@@ -19,6 +20,7 @@ pub enum ValidationError {
     FunctionReader(FunctionReaderError),
     TableReader(TableReaderError),
     MemoryReader(MemoryReaderError),
+    MemoryValidation(MemoryLimitsValidationError)
 }
 
 impl From<PreambleValidationError> for ValidationError {
@@ -63,6 +65,12 @@ impl From<MemoryReaderError> for ValidationError {
     }
 }
 
+impl From<MemoryLimitsValidationError> for ValidationError {
+    fn from(e: MemoryLimitsValidationError) -> Self {
+        ValidationError::MemoryValidation(e)
+    }
+}
+
 pub type Result<T, E = ValidationError> = result::Result<T, E>;
 
 impl Validator {
@@ -103,7 +111,8 @@ impl Validator {
                     },
                     SectionReader::Memory(reader) => {
                         for memory in reader.clone() {
-                            let _memory = memory?;
+                            let memory = memory?;
+                            validate_memory_type(&memory)?
                         }
                     }
                     _ => {}

@@ -1,8 +1,8 @@
-use crate::types::{ImportDescriptor, TypeIndex, MemoryType};
+use crate::types::{ImportDescriptor, TypeIndex};
 use crate::types::ImportDescriptor::{Func, Memory};
 use crate::validators::import::ImportValidationError::{InvalidFuncTypeIndex, InvalidMemoryTypeMemoryLimits};
 use crate::validators::type_index::{TypeIndexValidationError, validate_type_index};
-use crate::validators::memory::{MemoryLimitsValidationError, validate_memory_limits};
+use crate::validators::memory::{MemoryLimitsValidationError, validate_memory_type};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ImportValidationError {
@@ -27,8 +27,8 @@ pub(crate) fn validate_import_desc(import_desc: ImportDescriptor, max_type_index
         Func { type_index } => {
             validate_type_index(&type_index, max_type_index)?
         },
-        Memory(MemoryType { limits }) => {
-            validate_memory_limits(&limits)?
+        Memory(memory) => {
+            validate_memory_type(&memory)?
         },
         _ => {},
     }
