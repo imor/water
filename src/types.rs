@@ -1,6 +1,6 @@
 use crate::{BranchTableReader, InstructionReader};
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord)]
 pub struct TypeIndex(pub(crate) u32);
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]

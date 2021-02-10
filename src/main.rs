@@ -147,11 +147,9 @@ fn main() -> Result<(), MyError> {
                             println!("Found import {:?}", import);
                         }
                     },
-                    SectionReader::Function(mut reader) => {
+                    SectionReader::Function(reader) => {
                         println!("Found function section.");
-                        let count = reader.get_count();
-                        for _ in 0..count {
-                            let type_index = reader.read()?;
+                        for type_index in reader.into_iter() {
                             println!("Found type index {:?}", type_index);
                         }
                     },
