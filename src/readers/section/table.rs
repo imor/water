@@ -2,6 +2,7 @@ use crate::readers::binary::{BinaryReader, BinaryReaderError};
 use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 use crate::types::TableType;
+use crate::readers::common::{SectionReader, SectionItemIterator};
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TableSectionReader<'a> {
@@ -9,7 +10,7 @@ pub struct TableSectionReader<'a> {
     count: u32,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum TableReaderError {
     BinaryReaderError(BinaryReaderError),
 }
@@ -35,5 +36,27 @@ impl<'a> TableSectionReader<'a> {
 
     pub fn read(&mut self) -> Result<TableType> {
         Ok(self.reader.read_table_type()?)
+    }
+}
+
+impl<'a> SectionReader for TableSectionReader<'a> {
+    type Item = TableType;
+    type Error = TableReaderError;
+
+    fn read(&mut self) -> Result<Self::Item, Self::Error> {
+        self.read()
+    }
+
+    fn get_count(&self) -> u32 {
+        self.get_count()
+    }
+}
+
+impl<'a> IntoIterator for TableSectionReader<'a> {
+    type Item = Result<TableType>;
+    type IntoIter = SectionItemIterator<TableSectionReader<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SectionItemIterator::new(self)
     }
 }

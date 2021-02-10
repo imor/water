@@ -1,4 +1,4 @@
-use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError};
+use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError};
 use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 use std::cmp::max;
@@ -17,6 +17,7 @@ pub enum ValidationError {
     ImportReader(ImportReaderError),
     FunctionValidation(TypeIndexValidationError),
     FunctionReader(FunctionReaderError),
+    TableReader(TableReaderError),
 }
 
 impl From<PreambleValidationError> for ValidationError {
@@ -49,6 +50,12 @@ impl From<FunctionReaderError> for ValidationError {
     }
 }
 
+impl From<TableReaderError> for ValidationError {
+    fn from(e: TableReaderError) -> Self {
+        ValidationError::TableReader(e)
+    }
+}
+
 pub type Result<T, E = ValidationError> = result::Result<T, E>;
 
 impl Validator {
@@ -70,16 +77,21 @@ impl Validator {
                         }
                     }
                     SectionReader::Import(reader) => {
-                        for import in reader.clone().into_iter() {
+                        for import in reader.clone() {
                             let import = import?;
                             let id = import.import_descriptor;
                             validate_import_desc(id, self.max_type_index)?
                         }
                     },
                     SectionReader::Function(reader) => {
-                        for type_index in reader.clone().into_iter() {
+                        for type_index in reader.clone() {
                             let type_index = type_index?;
                             validate_type_index(&type_index, self.max_type_index)?
+                        }
+                    },
+                    SectionReader::Table(reader) => {
+                        for table in reader.clone() {
+                            let _table = table?;
                         }
                     }
                     _ => {}

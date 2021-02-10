@@ -137,27 +137,25 @@ fn main() -> Result<(), MyError> {
                     },
                     SectionReader::Type(reader) => {
                         println!("Found type section.");
-                        for tipe in reader.into_iter() {
+                        for tipe in reader {
                             println!("Found func type {:?}", tipe);
                         }
                     },
                     SectionReader::Import(reader) => {
                         println!("Found import section.");
-                        for import in reader.into_iter() {
+                        for import in reader {
                             println!("Found import {:?}", import);
                         }
                     },
                     SectionReader::Function(reader) => {
                         println!("Found function section.");
-                        for type_index in reader.into_iter() {
+                        for type_index in reader {
                             println!("Found type index {:?}", type_index);
                         }
                     },
-                    SectionReader::Table(mut reader) => {
+                    SectionReader::Table(reader) => {
                         println!("Found table section.");
-                        let count = reader.get_count();
-                        for _ in 0..count {
-                            let table = reader.read()?;
+                        for table in reader {
                             println!("Found table {:?}", table);
                         }
                     },
