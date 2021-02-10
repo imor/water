@@ -1,4 +1,4 @@
-use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError};
+use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError};
 use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 use std::cmp::max;
@@ -18,6 +18,7 @@ pub enum ValidationError {
     FunctionValidation(TypeIndexValidationError),
     FunctionReader(FunctionReaderError),
     TableReader(TableReaderError),
+    MemoryReader(MemoryReaderError),
 }
 
 impl From<PreambleValidationError> for ValidationError {
@@ -53,6 +54,12 @@ impl From<FunctionReaderError> for ValidationError {
 impl From<TableReaderError> for ValidationError {
     fn from(e: TableReaderError) -> Self {
         ValidationError::TableReader(e)
+    }
+}
+
+impl From<MemoryReaderError> for ValidationError {
+    fn from(e: MemoryReaderError) -> Self {
+        ValidationError::MemoryReader(e)
     }
 }
 
@@ -92,6 +99,11 @@ impl Validator {
                     SectionReader::Table(reader) => {
                         for table in reader.clone() {
                             let _table = table?;
+                        }
+                    },
+                    SectionReader::Memory(reader) => {
+                        for memory in reader.clone() {
+                            let _memory = memory?;
                         }
                     }
                     _ => {}

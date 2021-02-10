@@ -1,18 +1,24 @@
 use crate::types::{ImportDescriptor, TypeIndex, MemoryType};
 use crate::types::ImportDescriptor::{Func, Memory};
-use crate::validators::import::ImportValidationError::{InvalidFuncTypeIndex, InvalidMemoryLimits};
+use crate::validators::import::ImportValidationError::{InvalidFuncTypeIndex, InvalidMemoryTypeMemoryLimits};
 use crate::validators::type_index::{TypeIndexValidationError, validate_type_index};
-use crate::validators::limits_in_range;
+use crate::validators::memory::{MemoryLimitsValidationError, validate_memory_limits};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ImportValidationError {
     InvalidFuncTypeIndex,
-    InvalidMemoryLimits,
+    InvalidMemoryTypeMemoryLimits,
 }
 
 impl From<TypeIndexValidationError> for ImportValidationError {
     fn from(_: TypeIndexValidationError) -> Self {
         InvalidFuncTypeIndex
+    }
+}
+
+impl From<MemoryLimitsValidationError> for ImportValidationError {
+    fn from(_: MemoryLimitsValidationError) -> Self {
+        InvalidMemoryTypeMemoryLimits
     }
 }
 
@@ -22,9 +28,7 @@ pub(crate) fn validate_import_desc(import_desc: ImportDescriptor, max_type_index
             validate_type_index(&type_index, max_type_index)?
         },
         Memory(MemoryType { limits }) => {
-            if !limits_in_range(&limits, 65536) {
-                return Err(InvalidMemoryLimits);
-            }
+            validate_memory_limits(&limits)?
         },
         _ => {},
     }

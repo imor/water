@@ -159,11 +159,9 @@ fn main() -> Result<(), MyError> {
                             println!("Found table {:?}", table);
                         }
                     },
-                    SectionReader::Memory(mut reader) => {
+                    SectionReader::Memory(reader) => {
                         println!("Found memory section.");
-                        let count = reader.get_count();
-                        for _ in 0..count {
-                            let memory = reader.read()?;
+                        for memory in reader {
                             println!("Found memory {:?}", memory);
                         }
                     },
