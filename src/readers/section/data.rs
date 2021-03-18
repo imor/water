@@ -34,7 +34,7 @@ impl<'a> DataSectionReader<'a> {
     }
 
     pub fn read(&mut self) -> Result<DataSegment> {
-        Ok(self.read_data_segment()?)
+        self.read_data_segment()
     }
 
     fn read_data_segment(&mut self) -> Result<DataSegment> {

@@ -87,6 +87,12 @@ pub struct GlobalType {
 }
 
 #[derive(Debug)]
+pub struct GlobalSegment<'a> {
+    pub global_type: GlobalType,
+    pub instruction_reader: InstructionReader<'a>,
+}
+
+#[derive(Debug)]
 pub struct ElementSegment<'a> {
     pub table_index: TableIndex,
     pub instruction_reader: InstructionReader<'a>,

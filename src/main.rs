@@ -168,7 +168,13 @@ fn main() -> Result<(), MyError> {
                     SectionReader::Global(reader) => {
                         println!("Found global section.");
                         for global in reader {
+                            let mut global = global?;
                             println!("Found global {:?}", global);
+                            let instruction = global.instruction_reader.read()?;
+                            println!("Instruction: {:?}", instruction);
+                            if let Instruction::End = instruction {
+                                break;
+                            }
                         }
                     },
                     SectionReader::Export(mut reader) => {
