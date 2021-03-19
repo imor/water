@@ -5,3 +5,4 @@ mod type_index;
 mod memory;
 mod global;
 mod export;
+mod start;

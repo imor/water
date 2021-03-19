@@ -1,18 +1,18 @@
-use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, ExportReaderError};
+use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, ExportReaderError, TypeReaderError};
 use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
-use std::cmp::max;
 use crate::validators::import::{validate_import_desc, ImportValidationError};
 use crate::validators::type_index::{validate_type_index, TypeIndexValidationError};
-use crate::types::{TypeIndex, GlobalType, ImportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex};
+use crate::types::{TypeIndex, GlobalType, ImportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex, FunctionType};
 use crate::validators::memory::{validate_memory_type, MemoryLimitsValidationError};
 use crate::validators::global::{validate_global_type, GlobalValidationError};
 use crate::validators::export::{ExportValidator, ExportValidationError};
+use crate::validators::start::{validate_start, StartValidationError};
 
 pub struct Validator {
-    max_type_index: Option<TypeIndex>,
+    function_types: Vec<FunctionType>,
     globals: Vec<GlobalType>,
-    max_func_index: Option<FuncIndex>,
+    function_type_indices: Vec<TypeIndex>,
     max_table_index: Option<TableIndex>,
     max_memory_index: Option<MemoryIndex>,
 }
@@ -20,6 +20,7 @@ pub struct Validator {
 #[derive(PartialEq, Eq, Debug)]
 pub enum ValidationError {
     PreambleValidation(PreambleValidationError),
+    TypeReader(TypeReaderError),
     ImportValidation(ImportValidationError),
     ImportReader(ImportReaderError),
     FunctionValidation(TypeIndexValidationError),
@@ -31,11 +32,18 @@ pub enum ValidationError {
     GlobalValidation(GlobalValidationError),
     ExportReader(ExportReaderError),
     ExportValidation(ExportValidationError),
+    StartValidation(StartValidationError),
 }
 
 impl From<PreambleValidationError> for ValidationError {
     fn from(e: PreambleValidationError) -> Self {
         ValidationError::PreambleValidation(e)
+    }
+}
+
+impl From<TypeReaderError> for ValidationError {
+    fn from(e: TypeReaderError) -> Self {
+        ValidationError::TypeReader(e)
     }
 }
 
@@ -105,14 +113,20 @@ impl From<ExportValidationError> for ValidationError {
     }
 }
 
+impl From<StartValidationError> for ValidationError {
+    fn from(e: StartValidationError) -> Self {
+        ValidationError::StartValidation(e)
+    }
+}
+
 pub type Result<T, E = ValidationError> = result::Result<T, E>;
 
 impl Validator {
     pub fn new() -> Validator {
         Validator {
-            max_type_index: None,
+            function_types: Vec::new(),
             globals: Vec::new(),
-            max_func_index: None,
+            function_type_indices: Vec::new(),
             max_table_index: None,
             max_memory_index: None,
         }
@@ -126,24 +140,24 @@ impl Validator {
             Chunk::Section(ref section_reader) => {
                 match section_reader {
                     SectionReader::Type(reader) => {
-                        for (index, _func_type) in reader.clone().into_iter().enumerate() {
-                            let current_max = self.max_type_index.unwrap_or(TypeIndex(0));
-                            self.max_type_index = Some(max(current_max, TypeIndex(index as u32)));
+                        for func_type in reader.clone() {
+                            let func_type = func_type?;
+                            self.function_types.push(func_type);
                         }
                     }
                     SectionReader::Import(reader) => {
                         for import in reader.clone() {
                             let import = import?;
                             let import_desc = import.import_descriptor;
-                            validate_import_desc(&import_desc, self.max_type_index)?;
+                            validate_import_desc(&import_desc, self.get_max_type_index())?;
                             self.add_import_desc(&import_desc);
                         }
                     },
                     SectionReader::Function(reader) => {
                         for type_index in reader.clone() {
                             let type_index = type_index?;
-                            validate_type_index(&type_index, self.max_type_index)?;
-                            self.update_max_func_index();
+                            validate_type_index(&type_index, self.get_max_type_index())?;
+                            self.function_type_indices.push(type_index);
                         }
                     },
                     SectionReader::Table(reader) => {
@@ -167,22 +181,20 @@ impl Validator {
                     },
                     SectionReader::Export(reader) => {
                         let mut export_validator = ExportValidator::new();
-                        let max_global_index =
-                            if self.globals.is_empty() {
-                                None
-                            } else {
-                                Some(GlobalIndex(self.globals.len() as u32 - 1))
-                            };
                         for export in reader.clone() {
                             let export = export?;
                             export_validator.validate(
                                 &export,
-                                self.max_func_index,
+                                self.get_max_function_index(),
                                 self.max_table_index,
                                 self.max_memory_index,
-                                max_global_index,
+                                self.get_max_global_index(),
                             )?;
                         }
+                    },
+                    SectionReader::Start(reader) => {
+                        let func_index = reader.get_func_index();
+                        validate_start(func_index, &self.function_type_indices, &self.function_types)?;
                     }
                     _ => {}
                 }
@@ -193,10 +205,34 @@ impl Validator {
         Ok(())
     }
 
+    fn get_max_type_index(&self) -> Option<TypeIndex> {
+        if self.function_types.is_empty() {
+            None
+        } else {
+            Some(TypeIndex(self.function_types.len() as u32 - 1))
+        }
+    }
+
+    fn get_max_global_index(&self) -> Option<GlobalIndex> {
+        if self.globals.is_empty() {
+            None
+        } else {
+            Some(GlobalIndex(self.globals.len() as u32 - 1))
+        }
+    }
+
+    fn get_max_function_index(&self) -> Option<FuncIndex> {
+        if self.function_type_indices.is_empty() {
+            None
+        } else {
+            Some(FuncIndex(self.function_type_indices.len() as u32 - 1))
+        }
+    }
+
     fn add_import_desc(&mut self, import_desc: &ImportDescriptor) {
         match import_desc {
-            ImportDescriptor::Func { .. } => {
-                self.update_max_func_index();
+            ImportDescriptor::Func { type_index } => {
+                self.function_type_indices.push(*type_index);
             }
             ImportDescriptor::Table(_) => {
                 self.update_max_table_index();
@@ -208,13 +244,6 @@ impl Validator {
                 self.globals.push(*global_type)
             }
         }
-    }
-
-    fn update_max_func_index(&mut self) {
-        self.max_func_index = Some(match self.max_func_index {
-            None => { FuncIndex(0) }
-            Some(current) => { FuncIndex(current.0 + 1) }
-        });
     }
 
     fn update_max_table_index(&mut self) {

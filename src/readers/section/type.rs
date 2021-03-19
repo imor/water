@@ -10,7 +10,7 @@ pub struct TypeSectionReader<'a> {
     count: u32,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum TypeReaderError {
     BinaryReaderError(BinaryReaderError),
     InvalidLeadingByte,
