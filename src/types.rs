@@ -3,16 +3,16 @@ use crate::{BranchTableReader, InstructionReader};
 #[derive(PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord)]
 pub struct TypeIndex(pub(crate) u32);
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, PartialOrd)]
 pub struct FuncIndex(pub(crate) u32);
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, PartialOrd)]
 pub struct TableIndex(pub(crate) u32);
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, PartialOrd)]
 pub struct MemoryIndex(pub(crate) u32);
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, PartialOrd)]
 pub struct GlobalIndex(pub(crate) u32);
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]

@@ -10,7 +10,7 @@ pub struct ExportSectionReader<'a> {
     count: u32,
 }
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum ExportReaderError {
     BinaryReaderError(BinaryReaderError),
     InvalidExportDescByte,
