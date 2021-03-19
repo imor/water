@@ -21,7 +21,7 @@ pub struct LocalIndex(pub(crate) u32);
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct LabelIndex(pub(crate) u32);
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum ValueType {
     I32,
     I64,
@@ -80,7 +80,7 @@ pub struct MemoryType {
     pub(crate) limits: Limits
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct GlobalType {
     pub(crate) var_type: ValueType,
     pub(crate) mutable: bool,

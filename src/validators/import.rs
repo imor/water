@@ -22,7 +22,7 @@ impl From<MemoryLimitsValidationError> for ImportValidationError {
     }
 }
 
-pub(crate) fn validate_import_desc(import_desc: ImportDescriptor, max_type_index: Option<TypeIndex>) -> Result<(), ImportValidationError> {
+pub(crate) fn validate_import_desc(import_desc: &ImportDescriptor, max_type_index: Option<TypeIndex>) -> Result<(), ImportValidationError> {
     match import_desc {
         Func { type_index } => {
             validate_type_index(&type_index, max_type_index)?

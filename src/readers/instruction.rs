@@ -10,7 +10,7 @@ pub struct InstructionReader<'a> {
     reader: BinaryReader<'a>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum InstructionReaderError {
     BinaryReaderError(BinaryReaderError),
     InvalidInstruction,

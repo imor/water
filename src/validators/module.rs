@@ -1,14 +1,16 @@
-use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError};
+use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError, GlobalReaderError};
 use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 use std::cmp::max;
 use crate::validators::import::{validate_import_desc, ImportValidationError};
 use crate::validators::type_index::{validate_type_index, TypeIndexValidationError};
-use crate::types::TypeIndex;
+use crate::types::{TypeIndex, GlobalType, ImportDescriptor};
 use crate::validators::memory::{validate_memory_type, MemoryLimitsValidationError};
+use crate::validators::global::{validate_global_type, GlobalValidationError};
 
 pub struct Validator {
     max_type_index: Option<TypeIndex>,
+    globals: Vec<GlobalType>,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -20,7 +22,9 @@ pub enum ValidationError {
     FunctionReader(FunctionReaderError),
     TableReader(TableReaderError),
     MemoryReader(MemoryReaderError),
-    MemoryValidation(MemoryLimitsValidationError)
+    MemoryValidation(MemoryLimitsValidationError),
+    GlobalReader(GlobalReaderError),
+    GlobalValidation(GlobalValidationError),
 }
 
 impl From<PreambleValidationError> for ValidationError {
@@ -71,11 +75,23 @@ impl From<MemoryLimitsValidationError> for ValidationError {
     }
 }
 
+impl From<GlobalReaderError> for ValidationError {
+    fn from(e: GlobalReaderError) -> Self {
+        ValidationError::GlobalReader(e)
+    }
+}
+
+impl From<GlobalValidationError> for ValidationError {
+    fn from(e: GlobalValidationError) -> Self {
+        ValidationError::GlobalValidation(e)
+    }
+}
+
 pub type Result<T, E = ValidationError> = result::Result<T, E>;
 
 impl Validator {
     pub fn new() -> Validator {
-        Validator { max_type_index: None }
+        Validator { max_type_index: None, globals: Vec::new() }
     }
 
     pub fn validate(&mut self, chunk: &Chunk) -> Result<()> {
@@ -94,8 +110,9 @@ impl Validator {
                     SectionReader::Import(reader) => {
                         for import in reader.clone() {
                             let import = import?;
-                            let id = import.import_descriptor;
-                            validate_import_desc(id, self.max_type_index)?
+                            let import_desc = import.import_descriptor;
+                            validate_import_desc(&import_desc, self.max_type_index)?;
+                            self.add_imported_global(&import_desc);
                         }
                     },
                     SectionReader::Function(reader) => {
@@ -115,6 +132,12 @@ impl Validator {
                             validate_memory_type(&memory)?
                         }
                     }
+                    SectionReader::Global(reader) => {
+                        for global in reader.clone() {
+                            let mut global = global?;
+                            validate_global_type(&mut global, &self.globals)?;
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -122,5 +145,14 @@ impl Validator {
             }
         }
         Ok(())
+    }
+
+    fn add_imported_global(&mut self, import_desc: &ImportDescriptor) {
+        match import_desc {
+            ImportDescriptor::Global(global_type) => {
+                self.globals.push(*global_type)
+            }
+            _ => {},
+        }
     }
 }

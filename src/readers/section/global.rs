@@ -10,7 +10,7 @@ pub struct GlobalSectionReader<'a> {
     count: u32,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum GlobalReaderError {
     BinaryReaderError(BinaryReaderError),
 }
