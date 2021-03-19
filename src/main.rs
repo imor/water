@@ -177,11 +177,9 @@ fn main() -> Result<(), MyError> {
                             }
                         }
                     },
-                    SectionReader::Export(mut reader) => {
+                    SectionReader::Export(reader) => {
                         println!("Found export section.");
-                        let count = reader.get_count();
-                        for _ in 0..count {
-                            let export = reader.read()?;
+                        for export in reader {
                             println!("Found export {:?}", export);
                         }
                     },
