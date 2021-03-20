@@ -45,11 +45,8 @@ pub fn is_expr_const_and_of_right_type(
         _ => return Err(InvalidInitExpr),
     }
 
-    match instruction_reader.read() {
-        Ok(_) => {
-            return Err(InvalidInitExpr);
-        }
-        Err(_) => {}
+    if instruction_reader.read().is_ok() {
+        return Err(InvalidInitExpr);
     }
 
     Ok(())

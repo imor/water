@@ -28,11 +28,11 @@ impl<R> Iterator for SectionItemIterator<R>
     type Item = Result<R::Item, R::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.remaining_items == 0 {
+        if self.remaining_items == 0 || self.error {
             None
             //TODO:Ensure that no bytes are left over
-        } else if self.error {
-            None
+        // } else if self.error {
+        //     None
         } else {
             let result = self.reader.read();
             self.error = result.is_err();
