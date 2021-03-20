@@ -229,14 +229,13 @@ fn main() -> Result<(), MyError> {
                             }
                         }
                     },
-                    SectionReader::Data(mut reader) => {
-                        let count = reader.get_count();
-                        println!("Found data section with {} data elements.", count);
-                        for _ in 0..count {
-                            let mut data_type = reader.read()?;
-                            println!("Found data type {:?}", data_type);
+                    SectionReader::Data(reader) => {
+                        println!("Found data section.");
+                        for data_segment in reader {
+                            let mut data_segment = data_segment?;
+                            println!("Found data segment {:?}", data_segment);
                             loop {
-                                let instruction = data_type.instruction_reader.read()?;
+                                let instruction = data_segment.instruction_reader.read()?;
                                 println!("Instruction: {:?}", instruction);
                                 if let Instruction::End = instruction {
                                     break;
