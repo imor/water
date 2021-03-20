@@ -196,7 +196,9 @@ impl<'a> BinaryReader<'a> {
         Ok(f64::from_le_bytes(bytes))
     }
 
-    pub(crate) fn create_branch_table_reader(&mut self) -> Result<BranchTableReader> {
+    pub(crate) fn create_branch_table_reader<'b>(&mut self) -> Result<BranchTableReader<'b>>
+        where 'a: 'b
+    {
         BranchTableReader::new(self.buffer)
     }
 

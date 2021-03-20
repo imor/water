@@ -37,7 +37,9 @@ impl<'a> InstructionReader<'a> {
         self.reader.eof()
     }
 
-    pub fn read(&mut self) -> Result<Instruction> {
+    pub fn read<'b>(&mut self) -> Result<Instruction<'b>>
+        where 'a: 'b
+    {
         match self.reader.read_byte()? {
             0x00 => Ok(Unreachable),
             0x01 => Ok(Nop),
@@ -402,5 +404,47 @@ impl<'a> InstructionReader<'a> {
                 }
             }
         }
+    }
+}
+
+pub struct InstructionIterator<'a> {
+    instruction_reader: InstructionReader<'a>,
+    done: bool,
+}
+
+impl<'a> InstructionIterator<'a> {
+    fn new(instruction_reader: InstructionReader) -> InstructionIterator {
+        InstructionIterator { instruction_reader, done: false }
+    }
+}
+
+impl<'a> Iterator for InstructionIterator<'a> {
+    type Item = Result<Instruction<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            None
+        } else {
+            match self.instruction_reader.read() {
+                r @ Err(_) => {
+                    self.done = true;
+                    Some(r)
+                }
+                r @ Ok(Instruction::End) => {
+                    self.done = true;
+                    Some(r)
+                }
+                r @ Ok(_) => { Some(r) }
+            }
+        }
+    }
+}
+
+impl<'a> IntoIterator for InstructionReader<'a> {
+    type Item = Result<Instruction<'a>>;
+    type IntoIter = InstructionIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        InstructionIterator::new(self)
     }
 }

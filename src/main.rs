@@ -1,7 +1,7 @@
 use std::io;
 use std::fs::File;
 use std::io::{BufReader, Error, Read};
-use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError, InstructionReaderError, Instruction, CodeReaderError, Validator, ValidationError};
+use water::{ParseError, Parser, Chunk, SectionReader, TypeReaderError, ImportReaderError, FunctionReaderError, ExportReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, StartReaderError, ElementReaderError, DataReaderError, InstructionReaderError, CodeReaderError, Validator, ValidationError};
 
 #[derive(Debug)]
 enum MyError {
@@ -168,14 +168,11 @@ fn main() -> Result<(), MyError> {
                     SectionReader::Global(reader) => {
                         println!("Found global section.");
                         for global in reader {
-                            let mut global = global?;
+                            let global = global?;
                             println!("Found global {:?}", global);
-                            loop {
-                                let instruction = global.instruction_reader.read()?;
+                            for instruction in global.instruction_reader {
+                                let instruction = instruction?;
                                 println!("Instruction: {:?}", instruction);
-                                if let Instruction::End = instruction {
-                                    break;
-                                }
                             }
                         }
                     },
@@ -191,14 +188,11 @@ fn main() -> Result<(), MyError> {
                     SectionReader::Element(reader) => {
                         println!("Found element section.");
                         for element_segment in reader {
-                            let mut element_segment = element_segment?;
+                            let element_segment = element_segment?;
                             println!("Found element segment {:?}", element_segment);
-                            loop {
-                                let instruction = element_segment.instruction_reader.read()?;
+                            for instruction in element_segment.instruction_reader {
+                                let instruction = instruction?;
                                 println!("Instruction: {:?}", instruction);
-                                if let Instruction::End = instruction {
-                                    break;
-                                }
                             }
                         }
                     },
@@ -232,14 +226,11 @@ fn main() -> Result<(), MyError> {
                     SectionReader::Data(reader) => {
                         println!("Found data section.");
                         for data_segment in reader {
-                            let mut data_segment = data_segment?;
+                            let data_segment = data_segment?;
                             println!("Found data segment {:?}", data_segment);
-                            loop {
-                                let instruction = data_segment.instruction_reader.read()?;
+                            for instruction in data_segment.instruction_reader {
+                                let instruction = instruction?;
                                 println!("Instruction: {:?}", instruction);
-                                if let Instruction::End = instruction {
-                                    break;
-                                }
                             }
                         }
                     },
