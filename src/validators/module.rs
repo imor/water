@@ -10,6 +10,7 @@ use crate::validators::export::{ExportValidator, ExportValidationError};
 use crate::validators::start::{validate_start, StartValidationError};
 use crate::validators::element::{validate_element, ElementValidationError};
 use crate::validators::data::{validate_data, DataValidationError};
+use crate::ValidationError::UnknownSection;
 
 pub struct Validator {
     function_types: Vec<FunctionType>,
@@ -39,6 +40,7 @@ pub enum ValidationError {
     ElementValidation(ElementValidationError),
     DataReader(DataReaderError),
     DataValidation(DataValidationError),
+    UnknownSection(u8),
 }
 
 impl From<PreambleValidationError> for ValidationError {
@@ -169,12 +171,13 @@ impl Validator {
             }
             Chunk::Section(ref section_reader) => {
                 match section_reader {
+                    SectionReader::Custom(_) => {}
                     SectionReader::Type(reader) => {
                         for func_type in reader.clone() {
                             let func_type = func_type?;
                             self.function_types.push(func_type);
                         }
-                    }
+                    },
                     SectionReader::Import(reader) => {
                         for import in reader.clone() {
                             let import = import?;
@@ -202,7 +205,7 @@ impl Validator {
                             validate_memory_type(&memory)?;
                             self.update_max_memory_index();
                         }
-                    }
+                    },
                     SectionReader::Global(reader) => {
                         for global in reader.clone() {
                             let mut global = global?;
@@ -236,6 +239,9 @@ impl Validator {
                                 &self.globals
                             )?;
                         }
+                    },
+                    SectionReader::Code(_reader) => {
+
                     }
                     SectionReader::Data(reader) => {
                         for data_segment in reader.clone() {
@@ -247,7 +253,9 @@ impl Validator {
                             )?;
                         }
                     }
-                    _ => {}
+                    SectionReader::Unknown(id) => {
+                        return Err(UnknownSection(*id));
+                    }
                 }
             }
             Chunk::Done => {
