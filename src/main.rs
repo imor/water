@@ -170,10 +170,12 @@ fn main() -> Result<(), MyError> {
                         for global in reader {
                             let mut global = global?;
                             println!("Found global {:?}", global);
-                            let instruction = global.instruction_reader.read()?;
-                            println!("Instruction: {:?}", instruction);
-                            if let Instruction::End = instruction {
-                                break;
+                            loop {
+                                let instruction = global.instruction_reader.read()?;
+                                println!("Instruction: {:?}", instruction);
+                                if let Instruction::End = instruction {
+                                    break;
+                                }
                             }
                         }
                     },
@@ -186,14 +188,13 @@ fn main() -> Result<(), MyError> {
                     SectionReader::Start(reader) => {
                         println!("Found start section with func index {:?}.", reader.get_func_index())
                     },
-                    SectionReader::Element(mut reader) => {
-                        let count = reader.get_count();
-                        println!("Found element section with {} elements.", count);
-                        for _ in 0..count {
-                            let mut element_type = reader.read()?;
-                            println!("Found element type {:?}", element_type);
+                    SectionReader::Element(reader) => {
+                        println!("Found element section.");
+                        for element_segment in reader {
+                            let mut element_segment = element_segment?;
+                            println!("Found element segment {:?}", element_segment);
                             loop {
-                                let instruction = element_type.instruction_reader.read()?;
+                                let instruction = element_segment.instruction_reader.read()?;
                                 println!("Instruction: {:?}", instruction);
                                 if let Instruction::End = instruction {
                                     break;
