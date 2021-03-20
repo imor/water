@@ -1,4 +1,4 @@
-use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, ExportReaderError, TypeReaderError};
+use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, ExportReaderError, TypeReaderError, ElementReaderError};
 use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 use crate::validators::import::{validate_import_desc, ImportValidationError};
@@ -8,6 +8,7 @@ use crate::validators::memory::{validate_memory_type, MemoryLimitsValidationErro
 use crate::validators::global::{validate_global_type, GlobalValidationError};
 use crate::validators::export::{ExportValidator, ExportValidationError};
 use crate::validators::start::{validate_start, StartValidationError};
+use crate::validators::element::{validate_element, ElementValidationError};
 
 pub struct Validator {
     function_types: Vec<FunctionType>,
@@ -33,6 +34,8 @@ pub enum ValidationError {
     ExportReader(ExportReaderError),
     ExportValidation(ExportValidationError),
     StartValidation(StartValidationError),
+    ElementReader(ElementReaderError),
+    ElementValidation(ElementValidationError),
 }
 
 impl From<PreambleValidationError> for ValidationError {
@@ -119,6 +122,18 @@ impl From<StartValidationError> for ValidationError {
     }
 }
 
+impl From<ElementReaderError> for ValidationError {
+    fn from(e: ElementReaderError) -> Self {
+        ValidationError::ElementReader(e)
+    }
+}
+
+impl From<ElementValidationError> for ValidationError {
+    fn from(e: ElementValidationError) -> Self {
+        ValidationError::ElementValidation(e)
+    }
+}
+
 pub type Result<T, E = ValidationError> = result::Result<T, E>;
 
 impl Validator {
@@ -195,6 +210,17 @@ impl Validator {
                     SectionReader::Start(reader) => {
                         let func_index = reader.get_func_index();
                         validate_start(func_index, &self.function_type_indices, &self.function_types)?;
+                    },
+                    SectionReader::Element(reader) => {
+                        for element_segment in reader.clone() {
+                            let mut element_segment = element_segment?;
+                            validate_element(
+                                &mut element_segment,
+                                self.max_table_index,
+                                self.get_max_function_index(),
+                                &self.globals
+                            )?;
+                        }
                     }
                     _ => {}
                 }

@@ -10,7 +10,7 @@ pub struct ElementSectionReader<'a> {
     count: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ElementReaderError {
     BinaryReaderError(BinaryReaderError),
 }

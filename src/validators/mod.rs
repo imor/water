@@ -6,3 +6,5 @@ mod memory;
 mod global;
 mod export;
 mod start;
+mod element;
+mod code;
