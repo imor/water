@@ -204,14 +204,14 @@ impl CodeValidatorState {
     }
 
     fn pop_known(&mut self, expected: ValueType) -> Result<Operand> {
-        self.pop_expected_operand(Known(expected))
+        self.pop_expected(Known(expected))
     }
 
     fn pop_unknown(&mut self) -> Result<Operand> {
-        self.pop_expected_operand(Unknown)
+        self.pop_expected(Unknown)
     }
 
-    fn pop_expected_operand(&mut self, expected: Operand) -> Result<Operand> {
+    fn pop_expected(&mut self, expected: Operand) -> Result<Operand> {
         let actual = self.pop_operand()?;
         if actual.is_unknown() {
             return Ok(expected);
@@ -297,7 +297,15 @@ impl CodeValidatorState {
             Instruction::Drop => {
                 self.pop_operand()?;
             }
-            Instruction::Select => {}
+            Instruction::Select => {
+                self.pop_known(ValueType::I32)?;
+                let first = self.pop_operand()?;
+                let second = self.pop_operand()?;
+                if first.is_unknown() || second.is_unknown() || first != second {
+                    return Err(TypeMismatch);
+                }
+                self.push_operand(second);
+            }
             Instruction::LocalGet { local_index } => {
                 let local_type = Self::get_local(locals, *local_index)?;
                 self.push_known(*local_type);
