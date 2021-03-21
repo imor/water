@@ -3,7 +3,7 @@ use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 use crate::validators::import::{validate_import_desc, ImportValidationError};
 use crate::validators::type_index::{validate_type_index, TypeIndexValidationError};
-use crate::types::{TypeIndex, GlobalType, ImportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex, FunctionType};
+use crate::types::{TypeIndex, GlobalType, ImportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex, FunctionType, TableType, MemoryType};
 use crate::validators::memory::{validate_memory_type, MemoryLimitsValidationError};
 use crate::validators::global::{validate_global_type, GlobalValidationError};
 use crate::validators::export::{ExportValidator, ExportValidationError};
@@ -214,35 +214,55 @@ impl ValidationContext {
         }
     }
 
+    fn get_max_table_index(&self) -> Option<TableIndex> {
+        self.max_table_index
+    }
+
+    fn get_max_memory_index(&self) -> Option<MemoryIndex> {
+        self.max_memory_index
+    }
+
     fn add_import_desc(&mut self, import_desc: &ImportDescriptor) {
         match import_desc {
             ImportDescriptor::Func { type_index } => {
                 self.function_type_indices.push(*type_index);
             }
-            ImportDescriptor::Table(_) => {
-                self.update_max_table_index();
+            ImportDescriptor::Table(table_type) => {
+                self.add_table_type(table_type);
             }
-            ImportDescriptor::Memory(_) => {
-                self.update_max_memory_index();
+            ImportDescriptor::Memory(memory_type) => {
+                self.add_memory_type(memory_type);
             }
             ImportDescriptor::Global(global_type) => {
-                self.globals.push(*global_type)
+                self.add_global_type(global_type);
             }
         }
     }
 
-    fn update_max_table_index(&mut self) {
+    fn add_table_type(&mut self, _table_type: &TableType) {
         self.max_table_index = Some(match self.max_table_index {
             None => { TableIndex(0) }
             Some(current) => { TableIndex(current.0 + 1) }
         });
     }
 
-    fn update_max_memory_index(&mut self) {
+    fn add_memory_type(&mut self, _memory_type: &MemoryType) {
         self.max_memory_index = Some(match self.max_memory_index {
             None => { MemoryIndex(0) }
             Some(current) => { MemoryIndex(current.0 + 1) }
         });
+    }
+
+    fn add_function_type(&mut self, function_type: FunctionType) {
+        self.function_types.push(function_type);
+    }
+
+    fn add_type_index(&mut self, type_index: TypeIndex) {
+        self.function_type_indices.push(type_index);
+    }
+
+    fn add_global_type(&mut self, global_type: &GlobalType) {
+        self.globals.push(*global_type)
     }
 }
 
@@ -262,9 +282,9 @@ impl Validator {
                 match section_reader {
                     SectionReader::Custom(_) => {}
                     SectionReader::Type(reader) => {
-                        for func_type in reader.clone() {
-                            let func_type = func_type?;
-                            self.context.function_types.push(func_type);
+                        for function_type in reader.clone() {
+                            let function_type = function_type?;
+                            self.context.add_function_type(function_type);
                         }
                     },
                     SectionReader::Import(reader) => {
@@ -279,27 +299,27 @@ impl Validator {
                         for type_index in reader.clone() {
                             let type_index = type_index?;
                             validate_type_index(&type_index, self.context.get_max_type_index())?;
-                            self.context.function_type_indices.push(type_index);
+                            self.context.add_type_index(type_index);
                         }
                     },
                     SectionReader::Table(reader) => {
                         for table in reader.clone() {
-                            let _table = table?;
-                            self.context.update_max_table_index();
+                            let table = table?;
+                            self.context.add_table_type(&table);
                         }
                     },
                     SectionReader::Memory(reader) => {
-                        for memory in reader.clone() {
-                            let memory = memory?;
-                            validate_memory_type(&memory)?;
-                            self.context.update_max_memory_index();
+                        for memory_type in reader.clone() {
+                            let memory_type = memory_type?;
+                            validate_memory_type(&memory_type)?;
+                            self.context.add_memory_type(&memory_type);
                         }
                     },
                     SectionReader::Global(reader) => {
                         for global in reader.clone() {
                             let mut global = global?;
                             validate_global_type(&mut global, &self.context.globals)?;
-                            self.context.globals.push(global.global_type);
+                            self.context.add_global_type(&global.global_type);
                         }
                     },
                     SectionReader::Export(reader) => {
@@ -309,8 +329,8 @@ impl Validator {
                             export_validator.validate(
                                 &export,
                                 self.context.get_max_function_index(),
-                                self.context.max_table_index,
-                                self.context.max_memory_index,
+                                self.context.get_max_table_index(),
+                                self.context.get_max_memory_index(),
                                 self.context.get_max_global_index(),
                             )?;
                         }
@@ -350,7 +370,7 @@ impl Validator {
                             let mut data_segment = data_segment?;
                             validate_data(
                                 &mut data_segment,
-                                self.context.max_memory_index,
+                                self.context.get_max_memory_index(),
                                 &self.context.globals
                             )?;
                         }

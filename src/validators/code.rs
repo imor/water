@@ -92,7 +92,7 @@ impl<'a> CodeValidator<'a> {
     ) -> Result<()> {
         let mut state = CodeValidatorState::new();
         let locals_reader = self.code.get_locals_reader()?;
-        let (params_count, locals, locals_iteration_proof) = self.create_locals(
+        let (locals, locals_iteration_proof) = self.create_locals(
             locals_reader,
             function_types,
             function_type_indices,
@@ -103,7 +103,7 @@ impl<'a> CodeValidator<'a> {
         for instruction in instruction_reader {
             let instruction = instruction?;
             println!("Validating instruction: {:?}", instruction);
-            state.validate_instruction(&instruction, globals, params_count, &locals)?;
+            state.validate_instruction(&instruction, globals, &locals)?;
         }
         Ok(())
     }
@@ -113,20 +113,23 @@ impl<'a> CodeValidator<'a> {
                      function_types: &[FunctionType],
                      function_type_indices: &[TypeIndex],
                      function_index: FuncIndex
-    ) -> Result<(usize, Vec<ValueType>, LocalsIterationProof)> {
+    ) -> Result<(Vec<ValueType>, LocalsIterationProof)> {
         //TODO:For now we are creating a vec of locals,
         //this can be represented more compactly which allows binary search
         //over that compressed representation. Use that representation.
-        let params_count = if let Some(func_type_index) = function_type_indices.get(function_index.0 as usize) {
+        let mut locals = Vec::new();
+        let params = if let Some(func_type_index) = function_type_indices.get(function_index.0 as usize) {
             if let Some(function_type) = function_types.get(func_type_index.0 as usize) {
-                function_type.params.len()
+                &function_type.params
             } else {
                 return Err(InvalidTypeIndex(*func_type_index));
             }
         } else {
             return Err(InvalidFunctionIndex(function_index));
         };
-        let mut locals = Vec::new();
+        for param in params.into_iter() {
+            locals.push(*param);
+        }
         let locals_results: Vec<Result<Locals, CodeReaderError>> = locals_reader.into_iter().collect();
         for local in locals_results {
             let local = local?;
@@ -134,7 +137,7 @@ impl<'a> CodeValidator<'a> {
                 locals.push(local.value_type);
             }
         }
-        Ok((params_count, locals, locals_reader.get_iteration_proof()?))
+        Ok((locals, locals_reader.get_iteration_proof()?))
     }
 
 }
@@ -226,7 +229,6 @@ impl CodeValidatorState {
     fn validate_instruction(&mut self,
                             instruction: &Instruction,
                             globals: &[GlobalType],
-                            params_count: usize,
                             locals: &[ValueType],
     ) -> Result<()> {
         match instruction {
@@ -251,10 +253,7 @@ impl CodeValidatorState {
                 //TODO: write a generic Vec<IndexType> that accepts an IndexType index
                 //and use that everywhere we use Vec<XType>
                 let li = local_index.0 as usize;
-                if li < params_count {
-                    return Err(InvalidLocalIndex(*local_index));
-                }
-                if let Some(local_type) = locals.get(li - params_count) {
+                if let Some(local_type) = locals.get(li) {
                     self.pop_expected_operand(Some(*local_type))?;
                     self.push_operand(*local_type);
                 } else {
