@@ -360,7 +360,8 @@ impl Validator {
                                 &self.context.globals,
                                 &self.context.function_types,
                                 &self.context.function_type_indices,
-                                FuncIndex(function_index)
+                                FuncIndex(function_index),
+                                self.context.get_max_memory_index(),
                             )?;
                             function_index += 1;
                         }

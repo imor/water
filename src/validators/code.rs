@@ -1,6 +1,6 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
-use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal};
+use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 use crate::validators::code::Operand::{Unknown, Known};
@@ -15,6 +15,8 @@ pub enum CodeValidationError {
     InvalidLocalIndex(LocalIndex),
     InvalidTypeIndex(TypeIndex),
     InvalidFunctionIndex(FuncIndex),
+    UndefinedMemory,
+    InvalidMemoryAlignment,
     TypeMismatch,
 }
 
@@ -90,7 +92,8 @@ impl<'a> CodeValidator<'a> {
                     globals: &[GlobalType],
                     function_types: &[FunctionType],
                     function_type_indices: &[TypeIndex],
-                    function_index: FuncIndex
+                    function_index: FuncIndex,
+                    max_memory_index: Option<MemoryIndex>,
     ) -> Result<()> {
         let mut state = CodeValidatorState::new();
         let locals_reader = self.code.get_locals_reader()?;
@@ -105,7 +108,7 @@ impl<'a> CodeValidator<'a> {
         for instruction in instruction_reader {
             let instruction = instruction?;
             println!("Validating instruction: {:?}", instruction);
-            state.validate_instruction(&instruction, globals, &locals)?;
+            state.validate_instruction(&instruction, globals, &locals, max_memory_index)?;
         }
         Ok(())
     }
@@ -276,15 +279,34 @@ impl CodeValidatorState {
     }
 
     fn unreachable(&mut self) {
+        //TODO:Ensure the unwrap doesn't panic
         let last = self.control_stack.last_mut().unwrap();
         self.operand_stack.truncate(last.height);
         last.unreachable = true;
+    }
+
+    fn validate_memory(&mut self,
+        max_memory_index: Option<MemoryIndex>,
+        memory_argument: &MemoryArgument,
+        max_alignment: u32,
+        result_type: ValueType,
+    ) ->Result<()> {
+        if max_memory_index.is_none() {
+            return Err(UndefinedMemory);
+        }
+        if memory_argument.alignment > max_alignment {
+            return Err(InvalidMemoryAlignment);
+        }
+        self.pop_known(ValueType::I32)?;
+        self.push_known(result_type);
+        Ok(())
     }
 
     fn validate_instruction(&mut self,
                             instruction: &Instruction,
                             globals: &[GlobalType],
                             locals: &[ValueType],
+                            max_memory_index: Option<MemoryIndex>,
     ) -> Result<()> {
         match instruction {
             Instruction::Unreachable => {
@@ -309,6 +331,7 @@ impl CodeValidatorState {
                 self.pop_known(ValueType::I32)?;
                 let first = self.pop_operand()?;
                 let second = self.pop_operand()?;
+                //TODO:should unknown operands be allowed here?
                 if first.is_unknown() || second.is_unknown() || first != second {
                     return Err(TypeMismatch);
                 }
@@ -340,10 +363,18 @@ impl CodeValidatorState {
                     return Err(SettingImmutableGlobal(*global_index));
                 }
             }
-            Instruction::I32Load { .. } => {}
-            Instruction::I64Load { .. } => {}
-            Instruction::F32Load { .. } => {}
-            Instruction::F64Load { .. } => {}
+            Instruction::I32Load { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 2, ValueType::I32)?;
+            }
+            Instruction::I64Load { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 3, ValueType::I64)?;
+            }
+            Instruction::F32Load { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 2, ValueType::F32)?;
+            }
+            Instruction::F64Load { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 3, ValueType::F64)?;
+            }
             Instruction::I32Load8s { .. } => {}
             Instruction::I32Load8u { .. } => {}
             Instruction::I32Load16s { .. } => {}
