@@ -3,6 +3,7 @@ use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, Fu
 use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
+use crate::validators::code::Operand::{Unknown, Known};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum CodeValidationError {
@@ -143,8 +144,27 @@ impl<'a> CodeValidator<'a> {
 
 }
 
+#[derive(Eq, PartialEq)]
+enum Operand {
+    Known(ValueType),
+    Unknown,
+}
+
+impl Operand {
+    fn is_known(&self) -> bool {
+        match self {
+            Known(_) => { true }
+            Unknown => { false }
+        }
+    }
+
+    fn is_unknown(&self) -> bool {
+        !self.is_known()
+    }
+}
+
 struct CodeValidatorState {
-    operand_stack: Vec<Option<ValueType>>,
+    operand_stack: Vec<Operand>,
     control_stack: Vec<ControlFrame>,
 }
 
@@ -161,16 +181,20 @@ impl CodeValidatorState {
         }
     }
 
-    fn push_operand(&mut self, operand: ValueType) {
-        self.operand_stack.push(Some(operand));
+    fn push_known(&mut self, operand: ValueType) {
+        self.push_operand(Known(operand));
     }
 
-    fn pop_operand(&mut self) -> Result<Option<ValueType>> {
+    fn push_operand(&mut self, operand: Operand) {
+        self.operand_stack.push(operand);
+    }
+
+    fn pop_operand(&mut self) -> Result<Operand> {
         //TODO:ensure that unwrap doesn't panic
         let last = self.control_stack.last().unwrap();
         if self.operand_stack.len() == last.height as usize {
             if last.unreachable {
-                Ok(None)
+                Ok(Unknown)
             } else {
                 Err(TypeMismatch)
             }
@@ -179,21 +203,21 @@ impl CodeValidatorState {
         }
     }
 
-    fn pop_known_type(&mut self, expected: ValueType) -> Result<Option<ValueType>> {
-        self.pop_expected_operand(Some(expected))
+    fn pop_known(&mut self, expected: ValueType) -> Result<Operand> {
+        self.pop_expected_operand(Known(expected))
     }
 
-    fn pop_unknown_type(&mut self) -> Result<Option<ValueType>> {
-        self.pop_expected_operand(None)
+    fn pop_unknown(&mut self) -> Result<Operand> {
+        self.pop_expected_operand(Unknown)
     }
 
-    fn pop_expected_operand(&mut self, expected: Option<ValueType>) -> Result<Option<ValueType>> {
+    fn pop_expected_operand(&mut self, expected: Operand) -> Result<Operand> {
         let actual = self.pop_operand()?;
-        if actual.is_none() {
+        if actual.is_unknown() {
             return Ok(expected);
         }
 
-        if expected.is_none() {
+        if expected.is_unknown() {
             return Ok(actual);
         }
 
@@ -276,26 +300,26 @@ impl CodeValidatorState {
             Instruction::Select => {}
             Instruction::LocalGet { local_index } => {
                 let local_type = Self::get_local(locals, *local_index)?;
-                self.push_operand(*local_type);
+                self.push_known(*local_type);
             }
             Instruction::LocalSet { local_index } => {
                 let local_type = Self::get_local(locals, *local_index)?;
-                self.pop_known_type(*local_type)?;
+                self.pop_known(*local_type)?;
             }
             Instruction::LocalTee { local_index } => {
                 //TODO: write a generic Vec<IndexType> that accepts an IndexType index
                 //and use that everywhere we use Vec<XType>
                 let local_type = Self::get_local(locals, *local_index)?;
-                self.pop_expected_operand(Some(*local_type))?;
-                self.push_operand(*local_type);
+                self.pop_known(*local_type)?;
+                self.push_known(*local_type);
             }
             Instruction::GlobalGet { global_index } => {
                 let global_type = Self::get_global(globals, *global_index)?;
-                self.push_operand(global_type.var_type);
+                self.push_known(global_type.var_type);
             }
             Instruction::GlobalSet { global_index } => {
                 let global_type = Self::get_global(globals, *global_index)?;
-                self.pop_known_type(global_type.var_type)?;
+                self.pop_known(global_type.var_type)?;
                 if !global_type.mutable {
                     return Err(SettingImmutableGlobal(*global_index));
                 }
@@ -326,16 +350,16 @@ impl CodeValidatorState {
             Instruction::MemorySize => {}
             Instruction::MemoryGrow => {}
             Instruction::I32Const(_) => {
-                self.push_operand(ValueType::I32);
+                self.push_known(ValueType::I32);
             }
             Instruction::I64Const(_) => {
-                self.push_operand(ValueType::I64);
+                self.push_known(ValueType::I64);
             }
             Instruction::F32Const(_) => {
-                self.push_operand(ValueType::F32);
+                self.push_known(ValueType::F32);
             }
             Instruction::F64Const(_) => {
-                self.push_operand(ValueType::F64);
+                self.push_known(ValueType::F64);
             }
             Instruction::I32Eqz => {}
             Instruction::I32Eq => {}
@@ -390,9 +414,9 @@ impl CodeValidatorState {
             Instruction::I32Shru |
             Instruction::I32Rotl |
             Instruction::I32Rotr => {
-                self.pop_expected_operand(Some(ValueType::I32))?;
-                self.pop_expected_operand(Some(ValueType::I32))?;
-                self.push_operand(ValueType::I32);
+                self.pop_known(ValueType::I32)?;
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::I32);
             }
 
             Instruction::I64Clz => {}
