@@ -270,7 +270,9 @@ impl CodeValidatorState {
             Instruction::Return => {}
             Instruction::Call { .. } => {}
             Instruction::CallIndirect { .. } => {}
-            Instruction::Drop => {}
+            Instruction::Drop => {
+                self.pop_operand()?;
+            }
             Instruction::Select => {}
             Instruction::LocalGet { local_index } => {
                 let local_type = Self::get_local(locals, *local_index)?;
