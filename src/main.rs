@@ -196,30 +196,21 @@ fn main() -> Result<(), MyError> {
                             }
                         }
                     },
-                    SectionReader::Code(mut reader) => {
-                        let count = reader.get_count();
-                        println!("Found code section with {} code entries.", count);
-                        for _ in 0..count {
-                            let code = reader.read()?;
+                    SectionReader::Code(reader) => {
+                        println!("Found code section.");
+                        for code in reader {
+                            let code = code?;
                             println!("Found code entry {:?}", code);
                             let mut locals_reader = code.get_locals_reader()?;
-                            let locals_count = locals_reader.get_count();
-                            println!("Found {} locals", locals_count);
-                            for _ in 0..locals_count {
-                                let locals = locals_reader.read()?;
+                            for locals in &mut locals_reader {
+                                let locals = locals?;
                                 println!("Locals: {:?}", locals);
                             }
-                            let mut instruction_reader = code.get_instruction_reader(locals_reader)?;
-                            loop {
-                                if instruction_reader.eof() {
-                                    break;
-                                }
-                                let instruction = instruction_reader.read();
-                                if let Ok(instruction) = instruction {
-                                    println!("Instruction: {:?}", instruction);
-                                } else {
-                                    println!("Error while reading instruction: {:?}", instruction)
-                                }
+                            let iteration_proof = locals_reader.get_iteration_proof()?;
+                            let instruction_reader = code.get_instruction_reader(iteration_proof)?;
+                            for instruction in instruction_reader {
+                                let instruction = instruction?;
+                                println!("Instruction: {:?}", instruction);
                             }
                         }
                     },
