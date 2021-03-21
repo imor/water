@@ -3,7 +3,7 @@ use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 use crate::validators::import::{validate_import_desc, ImportValidationError};
 use crate::validators::type_index::{validate_type_index, TypeIndexValidationError};
-use crate::types::{TypeIndex, GlobalType, ImportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex, FunctionType, Locals, ValueType};
+use crate::types::{TypeIndex, GlobalType, ImportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex, FunctionType};
 use crate::validators::memory::{validate_memory_type, MemoryLimitsValidationError};
 use crate::validators::global::{validate_global_type, GlobalValidationError};
 use crate::validators::export::{ExportValidator, ExportValidationError};
@@ -12,14 +12,9 @@ use crate::validators::element::{validate_element, ElementValidationError};
 use crate::validators::data::{validate_data, DataValidationError};
 use crate::ValidationError::UnknownSection;
 use crate::validators::code::{CodeValidator, CodeValidationError};
-use crate::readers::section::code::{LocalsIterationProof, LocalsReader};
 
 pub struct Validator {
-    function_types: Vec<FunctionType>,
-    globals: Vec<GlobalType>,
-    function_type_indices: Vec<TypeIndex>,
-    max_table_index: Option<TableIndex>,
-    max_memory_index: Option<MemoryIndex>,
+    context: ValidationContext,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -176,128 +171,23 @@ impl From<CodeValidationError> for ValidationError {
 
 pub type Result<T, E = ValidationError> = result::Result<T, E>;
 
-impl Validator {
-    pub fn new() -> Validator {
-        Validator {
+struct ValidationContext {
+    function_types: Vec<FunctionType>,
+    globals: Vec<GlobalType>,
+    function_type_indices: Vec<TypeIndex>,
+    max_table_index: Option<TableIndex>,
+    max_memory_index: Option<MemoryIndex>,
+}
+
+impl ValidationContext {
+    fn new() -> ValidationContext {
+        ValidationContext {
             function_types: Vec::new(),
             globals: Vec::new(),
             function_type_indices: Vec::new(),
             max_table_index: None,
             max_memory_index: None,
         }
-    }
-
-    pub fn validate(&mut self, chunk: &Chunk) -> Result<()> {
-        match *chunk {
-            Chunk::Preamble(magic_number, version) => {
-                validate_preamble(magic_number, version)?;
-            }
-            Chunk::Section(ref section_reader) => {
-                match section_reader {
-                    SectionReader::Custom(_) => {}
-                    SectionReader::Type(reader) => {
-                        for func_type in reader.clone() {
-                            let func_type = func_type?;
-                            self.function_types.push(func_type);
-                        }
-                    },
-                    SectionReader::Import(reader) => {
-                        for import in reader.clone() {
-                            let import = import?;
-                            let import_desc = import.import_descriptor;
-                            validate_import_desc(&import_desc, self.get_max_type_index())?;
-                            self.add_import_desc(&import_desc);
-                        }
-                    },
-                    SectionReader::Function(reader) => {
-                        for type_index in reader.clone() {
-                            let type_index = type_index?;
-                            validate_type_index(&type_index, self.get_max_type_index())?;
-                            self.function_type_indices.push(type_index);
-                        }
-                    },
-                    SectionReader::Table(reader) => {
-                        for table in reader.clone() {
-                            let _table = table?;
-                            self.update_max_table_index();
-                        }
-                    },
-                    SectionReader::Memory(reader) => {
-                        for memory in reader.clone() {
-                            let memory = memory?;
-                            validate_memory_type(&memory)?;
-                            self.update_max_memory_index();
-                        }
-                    },
-                    SectionReader::Global(reader) => {
-                        for global in reader.clone() {
-                            let mut global = global?;
-                            validate_global_type(&mut global, &self.globals)?;
-                            self.globals.push(global.global_type);
-                        }
-                    },
-                    SectionReader::Export(reader) => {
-                        let mut export_validator = ExportValidator::new();
-                        for export in reader.clone() {
-                            let export = export?;
-                            export_validator.validate(
-                                &export,
-                                self.get_max_function_index(),
-                                self.max_table_index,
-                                self.max_memory_index,
-                                self.get_max_global_index(),
-                            )?;
-                        }
-                    },
-                    SectionReader::Start(reader) => {
-                        let func_index = reader.get_func_index();
-                        validate_start(func_index, &self.function_type_indices, &self.function_types)?;
-                    },
-                    SectionReader::Element(reader) => {
-                        for element_segment in reader.clone() {
-                            let mut element_segment = element_segment?;
-                            validate_element(
-                                &mut element_segment,
-                                self.max_table_index,
-                                self.get_max_function_index(),
-                                &self.globals
-                            )?;
-                        }
-                    },
-                    SectionReader::Code(reader) => {
-                        let mut function_index = 0u32;
-                        for code in reader.clone() {
-                            let code = code?;
-
-                            let mut code_validator = CodeValidator::new(code);
-                            code_validator.validate(
-                                &self.globals,
-                                &self.function_types,
-                                &self.function_type_indices,
-                                FuncIndex(function_index)
-                            );
-                            function_index += 1;
-                        }
-                    }
-                    SectionReader::Data(reader) => {
-                        for data_segment in reader.clone() {
-                            let mut data_segment = data_segment?;
-                            validate_data(
-                                &mut data_segment,
-                                self.max_memory_index,
-                                &self.globals
-                            )?;
-                        }
-                    }
-                    SectionReader::Unknown(id) => {
-                        return Err(UnknownSection(*id));
-                    }
-                }
-            }
-            Chunk::Done => {
-            }
-        }
-        Ok(())
     }
 
     fn get_max_type_index(&self) -> Option<TypeIndex> {
@@ -353,6 +243,127 @@ impl Validator {
             None => { MemoryIndex(0) }
             Some(current) => { MemoryIndex(current.0 + 1) }
         });
+    }
+}
+
+impl Validator {
+    pub fn new() -> Validator {
+        Validator {
+            context: ValidationContext::new()
+        }
+    }
+
+    pub fn validate(&mut self, chunk: &Chunk) -> Result<()> {
+        match *chunk {
+            Chunk::Preamble(magic_number, version) => {
+                validate_preamble(magic_number, version)?;
+            }
+            Chunk::Section(ref section_reader) => {
+                match section_reader {
+                    SectionReader::Custom(_) => {}
+                    SectionReader::Type(reader) => {
+                        for func_type in reader.clone() {
+                            let func_type = func_type?;
+                            self.context.function_types.push(func_type);
+                        }
+                    },
+                    SectionReader::Import(reader) => {
+                        for import in reader.clone() {
+                            let import = import?;
+                            let import_desc = import.import_descriptor;
+                            validate_import_desc(&import_desc, self.context.get_max_type_index())?;
+                            self.context.add_import_desc(&import_desc);
+                        }
+                    },
+                    SectionReader::Function(reader) => {
+                        for type_index in reader.clone() {
+                            let type_index = type_index?;
+                            validate_type_index(&type_index, self.context.get_max_type_index())?;
+                            self.context.function_type_indices.push(type_index);
+                        }
+                    },
+                    SectionReader::Table(reader) => {
+                        for table in reader.clone() {
+                            let _table = table?;
+                            self.context.update_max_table_index();
+                        }
+                    },
+                    SectionReader::Memory(reader) => {
+                        for memory in reader.clone() {
+                            let memory = memory?;
+                            validate_memory_type(&memory)?;
+                            self.context.update_max_memory_index();
+                        }
+                    },
+                    SectionReader::Global(reader) => {
+                        for global in reader.clone() {
+                            let mut global = global?;
+                            validate_global_type(&mut global, &self.context.globals)?;
+                            self.context.globals.push(global.global_type);
+                        }
+                    },
+                    SectionReader::Export(reader) => {
+                        let mut export_validator = ExportValidator::new();
+                        for export in reader.clone() {
+                            let export = export?;
+                            export_validator.validate(
+                                &export,
+                                self.context.get_max_function_index(),
+                                self.context.max_table_index,
+                                self.context.max_memory_index,
+                                self.context.get_max_global_index(),
+                            )?;
+                        }
+                    },
+                    SectionReader::Start(reader) => {
+                        let func_index = reader.get_func_index();
+                        validate_start(func_index, &self.context.function_type_indices, &self.context.function_types)?;
+                    },
+                    SectionReader::Element(reader) => {
+                        for element_segment in reader.clone() {
+                            let mut element_segment = element_segment?;
+                            validate_element(
+                                &mut element_segment,
+                                self.context.max_table_index,
+                                self.context.get_max_function_index(),
+                                &self.context.globals
+                            )?;
+                        }
+                    },
+                    SectionReader::Code(reader) => {
+                        let mut function_index = 0u32;
+                        for code in reader.clone() {
+                            let code = code?;
+
+                            let mut code_validator = CodeValidator::new(code);
+                            code_validator.validate(
+                                &self.context.globals,
+                                &self.context.function_types,
+                                &self.context.function_type_indices,
+                                FuncIndex(function_index)
+                            )?;
+                            function_index += 1;
+                        }
+                    }
+                    SectionReader::Data(reader) => {
+                        for data_segment in reader.clone() {
+                            let mut data_segment = data_segment?;
+                            validate_data(
+                                &mut data_segment,
+                                self.context.max_memory_index,
+                                &self.context.globals
+                            )?;
+                        }
+                    }
+                    SectionReader::Unknown(id) => {
+                        return Err(UnknownSection(*id));
+                    }
+                }
+            }
+            Chunk::Done => {
+            }
+        }
+        Ok(())
     }
 }
 
