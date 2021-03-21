@@ -1,4 +1,4 @@
-use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, ExportReaderError, TypeReaderError, ElementReaderError, DataReaderError};
+use crate::{Chunk, SectionReader, ImportReaderError, FunctionReaderError, TableReaderError, MemoryReaderError, GlobalReaderError, ExportReaderError, TypeReaderError, ElementReaderError, DataReaderError, CodeReaderError, InstructionReaderError};
 use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 use crate::validators::import::{validate_import_desc, ImportValidationError};
@@ -11,6 +11,7 @@ use crate::validators::start::{validate_start, StartValidationError};
 use crate::validators::element::{validate_element, ElementValidationError};
 use crate::validators::data::{validate_data, DataValidationError};
 use crate::ValidationError::UnknownSection;
+use crate::validators::code::{CodeValidator, CodeValidationError};
 
 pub struct Validator {
     function_types: Vec<FunctionType>,
@@ -40,6 +41,9 @@ pub enum ValidationError {
     ElementValidation(ElementValidationError),
     DataReader(DataReaderError),
     DataValidation(DataValidationError),
+    CodeReader(CodeReaderError),
+    InstructionReader(InstructionReaderError),
+    CodeValidation(CodeValidationError),
     UnknownSection(u8),
 }
 
@@ -151,6 +155,24 @@ impl From<DataValidationError> for ValidationError {
     }
 }
 
+impl From<CodeReaderError> for ValidationError {
+    fn from(e: CodeReaderError) -> Self {
+        ValidationError::CodeReader(e)
+    }
+}
+
+impl From<InstructionReaderError> for ValidationError {
+    fn from(e: InstructionReaderError) -> Self {
+        ValidationError::InstructionReader(e)
+    }
+}
+
+impl From<CodeValidationError> for ValidationError {
+    fn from(e: CodeValidationError) -> Self {
+        ValidationError::CodeValidation(e)
+    }
+}
+
 pub type Result<T, E = ValidationError> = result::Result<T, E>;
 
 impl Validator {
@@ -240,8 +262,20 @@ impl Validator {
                             )?;
                         }
                     },
-                    SectionReader::Code(_reader) => {
+                    SectionReader::Code(reader) => {
+                        let code_validator = CodeValidator::new();
+                        for code in reader.clone() {
+                            let code = code?;
 
+                            let mut locals_reader = code.get_locals_reader()?;
+                            let locals_iteration_proof = locals_reader.get_iteration_proof()?;
+                            let instruction_reader = code.get_instruction_reader(locals_iteration_proof)?;
+
+                            for instruction in instruction_reader {
+                                let instruction = instruction?;
+                                code_validator.validate(&instruction)?;
+                            }
+                        }
                     }
                     SectionReader::Data(reader) => {
                         for data_segment in reader.clone() {

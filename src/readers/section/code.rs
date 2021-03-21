@@ -29,7 +29,7 @@ pub struct CodeSectionReader<'a> {
     count: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum CodeReaderError {
     BinaryReaderError(BinaryReaderError),
 }

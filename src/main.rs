@@ -206,8 +206,8 @@ fn main() -> Result<(), MyError> {
                                 let locals = locals?;
                                 println!("Locals: {:?}", locals);
                             }
-                            let iteration_proof = locals_reader.get_iteration_proof()?;
-                            let instruction_reader = code.get_instruction_reader(iteration_proof)?;
+                            let locals_iteration_proof = locals_reader.get_iteration_proof()?;
+                            let instruction_reader = code.get_instruction_reader(locals_iteration_proof)?;
                             for instruction in instruction_reader {
                                 let instruction = instruction?;
                                 println!("Instruction: {:?}", instruction);

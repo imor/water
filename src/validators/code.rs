@@ -63,12 +63,16 @@ struct ControlFrame {
     unreachable: bool,
 }
 
-struct CodeValidator {
+pub struct CodeValidator {
     operand_stack: Vec<Option<ValueType>>,
     control_stack: Vec<ControlFrame>,
 }
 
 impl CodeValidator {
+    pub fn new() -> CodeValidator {
+        CodeValidator { operand_stack: Vec::new(), control_stack: Vec::new() }
+    }
+
     fn push_operand(&mut self, operand: Option<ValueType>) {
         self.operand_stack.push(operand);
     }
