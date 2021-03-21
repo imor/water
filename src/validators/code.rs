@@ -73,7 +73,7 @@ pub fn is_expr_const_and_of_right_type(
 struct ControlFrame {
     label_types: Vec<ValueType>,
     end_types: Vec<ValueType>,
-    height: u32,
+    height: usize,
     unreachable: bool,
 }
 
@@ -236,7 +236,7 @@ impl CodeValidatorState {
     // }
 
     fn push_control_frame(&mut self, label_types: Vec<ValueType>, end_types: Vec<ValueType>) {
-        let height = self.operand_stack.len() as u32;
+        let height = self.operand_stack.len();
         let frame = ControlFrame { label_types, end_types, height, unreachable: false };
         self.control_stack.push(frame);
     }
@@ -275,13 +275,21 @@ impl CodeValidatorState {
         }
     }
 
+    fn unreachable(&mut self) {
+        let last = self.control_stack.last_mut().unwrap();
+        self.operand_stack.truncate(last.height);
+        last.unreachable = true;
+    }
+
     fn validate_instruction(&mut self,
                             instruction: &Instruction,
                             globals: &[GlobalType],
                             locals: &[ValueType],
     ) -> Result<()> {
         match instruction {
-            Instruction::Unreachable => {}
+            Instruction::Unreachable => {
+                self.unreachable();
+            }
             Instruction::Nop => {}
             Instruction::Block { .. } => {}
             Instruction::Loop { .. } => {}
