@@ -1,10 +1,12 @@
-use crate::{InstructionReader, Instruction, InstructionReaderError};
-use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex};
+use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
+use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex};
 use std::result;
+use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum CodeValidationError {
+    CodeReader(CodeReaderError),
     InvalidInitExpr,
     InstructionReader(InstructionReaderError),
     InvalidGlobalIndex(GlobalIndex),
@@ -12,6 +14,12 @@ pub enum CodeValidationError {
     InvalidTypeIndex(TypeIndex),
     InvalidFunctionIndex(FuncIndex),
     TypeMismatch,
+}
+
+impl From<CodeReaderError> for CodeValidationError {
+    fn from(e: CodeReaderError) -> Self {
+        CodeValidationError::CodeReader(e)
+    }
 }
 
 impl From<InstructionReaderError> for CodeValidationError {
@@ -67,14 +75,78 @@ struct ControlFrame {
     unreachable: bool,
 }
 
-pub struct CodeValidator {
+pub struct CodeValidator<'a> {
+    code: Code<'a>,
+}
+
+impl<'a> CodeValidator<'a> {
+    pub fn new(code: Code<'a>) -> CodeValidator<'a> {
+        CodeValidator { code }
+    }
+
+    pub fn validate(&mut self,
+                    globals: &[GlobalType],
+                    function_types: &[FunctionType],
+                    function_type_indices: &[TypeIndex],
+                    function_index: FuncIndex
+    ) -> Result<()> {
+        let mut state = CodeValidatorState::new();
+        let locals_reader = self.code.get_locals_reader()?;
+        let (params_count, locals, locals_iteration_proof) = self.create_locals(
+            locals_reader,
+            function_types,
+            function_type_indices,
+            function_index
+        )?;
+        let instruction_reader = self.code.get_instruction_reader(locals_iteration_proof)?;
+
+        for instruction in instruction_reader {
+            let instruction = instruction?;
+            println!("Validating instruction: {:?}", instruction);
+            state.validate_instruction(&instruction, globals, params_count, &locals)?;
+        }
+        Ok(())
+    }
+
+    fn create_locals(&self,
+                     mut locals_reader: LocalsReader,
+                     function_types: &[FunctionType],
+                     function_type_indices: &[TypeIndex],
+                     function_index: FuncIndex
+    ) -> Result<(usize, Vec<ValueType>, LocalsIterationProof)> {
+        //TODO:For now we are creating a vec of locals,
+        //this can be represented more compactly which allows binary search
+        //over that compressed representation. Use that representation.
+        let params_count = if let Some(func_type_index) = function_type_indices.get(function_index.0 as usize) {
+            if let Some(function_type) = function_types.get(func_type_index.0 as usize) {
+                function_type.params.len()
+            } else {
+                return Err(InvalidTypeIndex(*func_type_index));
+            }
+        } else {
+            return Err(InvalidFunctionIndex(function_index));
+        };
+        let mut locals = Vec::new();
+        let locals_results: Vec<Result<Locals, CodeReaderError>> = locals_reader.into_iter().collect();
+        for local in locals_results {
+            let local = local?;
+            for _ in 0..local.count {
+                locals.push(local.value_type);
+            }
+        }
+        Ok((params_count, locals, locals_reader.get_iteration_proof()?))
+    }
+
+}
+
+struct CodeValidatorState {
     operand_stack: Vec<Option<ValueType>>,
     control_stack: Vec<ControlFrame>,
 }
 
-impl CodeValidator {
-    pub fn new() -> CodeValidator {
-        CodeValidator {
+impl CodeValidatorState {
+    fn new() -> CodeValidatorState {
+        CodeValidatorState {
             operand_stack: Vec::new(),
             control_stack: vec![ControlFrame {
                 label_types:Vec::new(),
@@ -151,11 +223,11 @@ impl CodeValidator {
     //     Ok(last.end_types.clone())
     // }
 
-    pub fn validate(&mut self,
-                    instruction: &Instruction,
-                    globals: &[GlobalType],
-                    params_count: usize,
-                    locals: &[ValueType],
+    fn validate_instruction(&mut self,
+                            instruction: &Instruction,
+                            globals: &[GlobalType],
+                            params_count: usize,
+                            locals: &[ValueType],
     ) -> Result<()> {
         match instruction {
             Instruction::Unreachable => {}

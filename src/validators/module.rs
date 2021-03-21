@@ -265,20 +265,17 @@ impl Validator {
                         }
                     },
                     SectionReader::Code(reader) => {
-                        let mut code_validator = CodeValidator::new();
                         let mut function_index = 0u32;
                         for code in reader.clone() {
                             let code = code?;
 
-                            let locals_reader = code.get_locals_reader()?;
-                            let (params_count, locals, locals_iteration_proof) = self.create_locals(locals_reader, FuncIndex(function_index))?;
-                            let instruction_reader = code.get_instruction_reader(locals_iteration_proof)?;
-
-                            for instruction in instruction_reader {
-                                let instruction = instruction?;
-                                println!("Validating instruction: {:?}", instruction);
-                                code_validator.validate(&instruction, &self.globals, params_count, &locals)?;
-                            }
+                            let mut code_validator = CodeValidator::new(code);
+                            code_validator.validate(
+                                &self.globals,
+                                &self.function_types,
+                                &self.function_type_indices,
+                                FuncIndex(function_index)
+                            );
                             function_index += 1;
                         }
                     }
@@ -301,30 +298,6 @@ impl Validator {
             }
         }
         Ok(())
-    }
-
-    fn create_locals(&self, mut locals_reader: LocalsReader, function_index: FuncIndex) -> Result<(usize, Vec<ValueType>, LocalsIterationProof)> {
-        //TODO:For now we are creating a vec of locals,
-        //this can be represented more compactly which allows binary search
-        //over that compressed representation. Use that representation.
-        let params_count = if let Some(func_type_index) = self.function_type_indices.get(function_index.0 as usize) {
-            if let Some(function_type) = self.function_types.get(func_type_index.0 as usize) {
-                function_type.params.len()
-            } else {
-                return Err(ValidationError::CodeValidation(CodeValidationError::InvalidTypeIndex(*func_type_index)))
-            }
-        } else {
-            return Err(ValidationError::CodeValidation(CodeValidationError::InvalidFunctionIndex(function_index)));
-        };
-        let mut locals = Vec::new();
-        let locals_results: Vec<Result<Locals, CodeReaderError>> = locals_reader.into_iter().collect();
-        for local in locals_results {
-            let local = local?;
-            for _ in 0..local.count {
-                locals.push(local.value_type);
-            }
-        }
-        Ok((params_count, locals, locals_reader.get_iteration_proof()?))
     }
 
     fn get_max_type_index(&self) -> Option<TypeIndex> {
