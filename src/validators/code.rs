@@ -235,6 +235,22 @@ impl CodeValidatorState {
     //     Ok(last.end_types.clone())
     // }
 
+    fn get_local(locals: &[ValueType], local_index: LocalIndex) -> Result<&ValueType> {
+        if let Some(local_type) = locals.get(local_index.0 as usize) {
+            Ok(local_type)
+        } else {
+            Err(InvalidLocalIndex(local_index))
+        }
+    }
+
+    fn get_global(globals: &[GlobalType], global_index: GlobalIndex) -> Result<&GlobalType> {
+        if let Some(global_type) = globals.get(global_index.0 as usize) {
+            Ok(global_type)
+        } else {
+            Err(InvalidGlobalIndex(global_index))
+        }
+    }
+
     fn validate_instruction(&mut self,
                             instruction: &Instruction,
                             globals: &[GlobalType],
@@ -256,36 +272,28 @@ impl CodeValidatorState {
             Instruction::CallIndirect { .. } => {}
             Instruction::Drop => {}
             Instruction::Select => {}
-            Instruction::LocalGet { .. } => {}
+            Instruction::LocalGet { local_index } => {
+                let local_type = Self::get_local(locals, *local_index)?;
+                self.push_operand(*local_type);
+            }
             Instruction::LocalSet { .. } => {}
             Instruction::LocalTee { local_index } => {
                 //TODO: write a generic Vec<IndexType> that accepts an IndexType index
                 //and use that everywhere we use Vec<XType>
-                let li = local_index.0 as usize;
-                if let Some(local_type) = locals.get(li) {
-                    self.pop_expected_operand(Some(*local_type))?;
-                    self.push_operand(*local_type);
-                } else {
-                    return Err(InvalidLocalIndex(*local_index));
-                }
+                let local_type = Self::get_local(locals, *local_index)?;
+                self.pop_expected_operand(Some(*local_type))?;
+                self.push_operand(*local_type);
             }
             Instruction::GlobalGet { global_index } => {
-                if let Some(global_type) = globals.get(global_index.0 as usize) {
-                    self.push_operand(global_type.var_type);
-                } else {
-                    return Err(InvalidGlobalIndex(*global_index));
-                }
+                let global_type = Self::get_global(globals, *global_index)?;
+                self.push_operand(global_type.var_type);
             }
             Instruction::GlobalSet { global_index } => {
-                if let Some(global_type) = globals.get(global_index.0 as usize) {
-                    self.pop_expected_type(global_type.var_type)?;
-                    if !global_type.mutable {
-                        return Err(SettingImmutableGlobal(*global_index));
-                    }
-                } else {
-                    return Err(InvalidGlobalIndex(*global_index));
+                let global_type = Self::get_global(globals, *global_index)?;
+                self.pop_expected_type(global_type.var_type)?;
+                if !global_type.mutable {
+                    return Err(SettingImmutableGlobal(*global_index));
                 }
-
             }
             Instruction::I32Load { .. } => {}
             Instruction::I64Load { .. } => {}
