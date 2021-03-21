@@ -1,6 +1,6 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
 use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 
@@ -10,6 +10,7 @@ pub enum CodeValidationError {
     InvalidInitExpr,
     InstructionReader(InstructionReaderError),
     InvalidGlobalIndex(GlobalIndex),
+    SettingImmutableGlobal(GlobalIndex),
     InvalidLocalIndex(LocalIndex),
     InvalidTypeIndex(TypeIndex),
     InvalidFunctionIndex(FuncIndex),
@@ -178,6 +179,14 @@ impl CodeValidatorState {
         }
     }
 
+    fn pop_expected_type(&mut self, expected: ValueType) -> Result<Option<ValueType>> {
+        self.pop_expected_operand(Some(expected))
+    }
+
+    fn pop_unknown_type(&mut self) -> Result<Option<ValueType>> {
+        self.pop_expected_operand(None)
+    }
+
     fn pop_expected_operand(&mut self, expected: Option<ValueType>) -> Result<Option<ValueType>> {
         let actual = self.pop_operand()?;
         if actual.is_none() {
@@ -267,7 +276,17 @@ impl CodeValidatorState {
                     return Err(InvalidGlobalIndex(*global_index));
                 }
             }
-            Instruction::GlobalSet { .. } => {}
+            Instruction::GlobalSet { global_index } => {
+                if let Some(global_type) = globals.get(global_index.0 as usize) {
+                    self.pop_expected_type(global_type.var_type)?;
+                    if !global_type.mutable {
+                        return Err(SettingImmutableGlobal(*global_index));
+                    }
+                } else {
+                    return Err(InvalidGlobalIndex(*global_index));
+                }
+
+            }
             Instruction::I32Load { .. } => {}
             Instruction::I64Load { .. } => {}
             Instruction::F32Load { .. } => {}
