@@ -179,7 +179,7 @@ impl CodeValidatorState {
         }
     }
 
-    fn pop_expected_type(&mut self, expected: ValueType) -> Result<Option<ValueType>> {
+    fn pop_known_type(&mut self, expected: ValueType) -> Result<Option<ValueType>> {
         self.pop_expected_operand(Some(expected))
     }
 
@@ -276,7 +276,10 @@ impl CodeValidatorState {
                 let local_type = Self::get_local(locals, *local_index)?;
                 self.push_operand(*local_type);
             }
-            Instruction::LocalSet { .. } => {}
+            Instruction::LocalSet { local_index } => {
+                let local_type = Self::get_local(locals, *local_index)?;
+                self.pop_known_type(*local_type)?;
+            }
             Instruction::LocalTee { local_index } => {
                 //TODO: write a generic Vec<IndexType> that accepts an IndexType index
                 //and use that everywhere we use Vec<XType>
@@ -290,7 +293,7 @@ impl CodeValidatorState {
             }
             Instruction::GlobalSet { global_index } => {
                 let global_type = Self::get_global(globals, *global_index)?;
-                self.pop_expected_type(global_type.var_type)?;
+                self.pop_known_type(global_type.var_type)?;
                 if !global_type.mutable {
                     return Err(SettingImmutableGlobal(*global_index));
                 }
