@@ -375,16 +375,36 @@ impl CodeValidatorState {
             Instruction::F64Load { memory_argument } => {
                 self.validate_memory(max_memory_index, memory_argument, 3, ValueType::F64)?;
             }
-            Instruction::I32Load8s { .. } => {}
-            Instruction::I32Load8u { .. } => {}
-            Instruction::I32Load16s { .. } => {}
-            Instruction::I32Load16u { .. } => {}
-            Instruction::I64Load8s { .. } => {}
-            Instruction::I64Load8u { .. } => {}
-            Instruction::I64Load16s { .. } => {}
-            Instruction::I64Load16u { .. } => {}
-            Instruction::I64Load32s { .. } => {}
-            Instruction::I64Load32u { .. } => {}
+            Instruction::I32Load8s { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 0, ValueType::I32)?;
+            }
+            Instruction::I32Load8u { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 0, ValueType::I32)?;
+            }
+            Instruction::I32Load16s { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 1, ValueType::I32)?;
+            }
+            Instruction::I32Load16u { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 1, ValueType::I32)?;
+            }
+            Instruction::I64Load8s { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 0, ValueType::I64)?;
+            }
+            Instruction::I64Load8u { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 0, ValueType::I64)?;
+            }
+            Instruction::I64Load16s { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 1, ValueType::I64)?;
+            }
+            Instruction::I64Load16u { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 1, ValueType::I64)?;
+            }
+            Instruction::I64Load32s { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 2, ValueType::I64)?;
+            }
+            Instruction::I64Load32u { memory_argument } => {
+                self.validate_memory(max_memory_index, memory_argument, 2, ValueType::I64)?;
+            }
             Instruction::I32Store { .. } => {}
             Instruction::I64Store { .. } => {}
             Instruction::F32Store { .. } => {}
