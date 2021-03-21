@@ -3,7 +3,7 @@ use std::result;
 use crate::validators::preamble::{validate_preamble, PreambleValidationError};
 use crate::validators::import::{validate_import_desc, ImportValidationError};
 use crate::validators::type_index::{validate_type_index, TypeIndexValidationError};
-use crate::types::{TypeIndex, GlobalType, ImportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex, FunctionType};
+use crate::types::{TypeIndex, GlobalType, ImportDescriptor, FuncIndex, TableIndex, MemoryIndex, GlobalIndex, FunctionType, Locals, ValueType};
 use crate::validators::memory::{validate_memory_type, MemoryLimitsValidationError};
 use crate::validators::global::{validate_global_type, GlobalValidationError};
 use crate::validators::export::{ExportValidator, ExportValidationError};
@@ -12,6 +12,7 @@ use crate::validators::element::{validate_element, ElementValidationError};
 use crate::validators::data::{validate_data, DataValidationError};
 use crate::ValidationError::UnknownSection;
 use crate::validators::code::{CodeValidator, CodeValidationError};
+use crate::readers::section::code::{LocalsIterationProof, LocalsReader};
 
 pub struct Validator {
     function_types: Vec<FunctionType>,
@@ -232,6 +233,7 @@ impl Validator {
                         for global in reader.clone() {
                             let mut global = global?;
                             validate_global_type(&mut global, &self.globals)?;
+                            self.globals.push(global.global_type);
                         }
                     },
                     SectionReader::Export(reader) => {
@@ -263,18 +265,21 @@ impl Validator {
                         }
                     },
                     SectionReader::Code(reader) => {
-                        let code_validator = CodeValidator::new();
+                        let mut code_validator = CodeValidator::new();
+                        let mut function_index = 0u32;
                         for code in reader.clone() {
                             let code = code?;
 
-                            let mut locals_reader = code.get_locals_reader()?;
-                            let locals_iteration_proof = locals_reader.get_iteration_proof()?;
+                            let locals_reader = code.get_locals_reader()?;
+                            let (params_count, locals, locals_iteration_proof) = self.create_locals(locals_reader, FuncIndex(function_index))?;
                             let instruction_reader = code.get_instruction_reader(locals_iteration_proof)?;
 
                             for instruction in instruction_reader {
                                 let instruction = instruction?;
-                                code_validator.validate(&instruction)?;
+                                println!("Validating instruction: {:?}", instruction);
+                                code_validator.validate(&instruction, &self.globals, params_count, &locals)?;
                             }
+                            function_index += 1;
                         }
                     }
                     SectionReader::Data(reader) => {
@@ -296,6 +301,30 @@ impl Validator {
             }
         }
         Ok(())
+    }
+
+    fn create_locals(&self, mut locals_reader: LocalsReader, function_index: FuncIndex) -> Result<(usize, Vec<ValueType>, LocalsIterationProof)> {
+        //TODO:For now we are creating a vec of locals,
+        //this can be represented more compactly which allows binary search
+        //over that compressed representation. Use that representation.
+        let params_count = if let Some(func_type_index) = self.function_type_indices.get(function_index.0 as usize) {
+            if let Some(function_type) = self.function_types.get(func_type_index.0 as usize) {
+                function_type.params.len()
+            } else {
+                return Err(ValidationError::CodeValidation(CodeValidationError::InvalidTypeIndex(*func_type_index)))
+            }
+        } else {
+            return Err(ValidationError::CodeValidation(CodeValidationError::InvalidFunctionIndex(function_index)));
+        };
+        let mut locals = Vec::new();
+        let locals_results: Vec<Result<Locals, CodeReaderError>> = locals_reader.into_iter().collect();
+        for local in locals_results {
+            let local = local?;
+            for _ in 0..local.count {
+                locals.push(local.value_type);
+            }
+        }
+        Ok((params_count, locals, locals_reader.get_iteration_proof()?))
     }
 
     fn get_max_type_index(&self) -> Option<TypeIndex> {

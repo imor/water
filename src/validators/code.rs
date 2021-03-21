@@ -1,12 +1,16 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError};
-use crate::types::{ValueType, GlobalType};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch};
+use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex};
 use std::result;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum CodeValidationError {
     InvalidInitExpr,
     InstructionReader(InstructionReaderError),
+    InvalidGlobalIndex(GlobalIndex),
+    InvalidLocalIndex(LocalIndex),
+    InvalidTypeIndex(TypeIndex),
+    InvalidFunctionIndex(FuncIndex),
     TypeMismatch,
 }
 
@@ -70,11 +74,19 @@ pub struct CodeValidator {
 
 impl CodeValidator {
     pub fn new() -> CodeValidator {
-        CodeValidator { operand_stack: Vec::new(), control_stack: Vec::new() }
+        CodeValidator {
+            operand_stack: Vec::new(),
+            control_stack: vec![ControlFrame {
+                label_types:Vec::new(),
+                end_types: Vec::new(),
+                height: 0,
+                unreachable: false
+            }]
+        }
     }
 
-    fn push_operand(&mut self, operand: Option<ValueType>) {
-        self.operand_stack.push(operand);
+    fn push_operand(&mut self, operand: ValueType) {
+        self.operand_stack.push(Some(operand));
     }
 
     fn pop_operand(&mut self) -> Result<Option<ValueType>> {
@@ -139,7 +151,12 @@ impl CodeValidator {
     //     Ok(last.end_types.clone())
     // }
 
-    pub fn validate(&self, instruction: &Instruction) -> Result<()> {
+    pub fn validate(&mut self,
+                    instruction: &Instruction,
+                    globals: &[GlobalType],
+                    params_count: usize,
+                    locals: &[ValueType],
+    ) -> Result<()> {
         match instruction {
             Instruction::Unreachable => {}
             Instruction::Nop => {}
@@ -158,8 +175,27 @@ impl CodeValidator {
             Instruction::Select => {}
             Instruction::LocalGet { .. } => {}
             Instruction::LocalSet { .. } => {}
-            Instruction::LocalTee { .. } => {}
-            Instruction::GlobalGet { .. } => {}
+            Instruction::LocalTee { local_index } => {
+                //TODO: write a generic Vec<IndexType> that accepts an IndexType index
+                //and use that everywhere we use Vec<XType>
+                let li = local_index.0 as usize;
+                if li < params_count {
+                    return Err(InvalidLocalIndex(*local_index));
+                }
+                if let Some(local_type) = locals.get(li - params_count) {
+                    self.pop_expected_operand(Some(*local_type))?;
+                    self.push_operand(*local_type);
+                } else {
+                    return Err(InvalidLocalIndex(*local_index));
+                }
+            }
+            Instruction::GlobalGet { global_index } => {
+                if let Some(global_type) = globals.get(global_index.0 as usize) {
+                    self.push_operand(global_type.var_type);
+                } else {
+                    return Err(InvalidGlobalIndex(*global_index));
+                }
+            }
             Instruction::GlobalSet { .. } => {}
             Instruction::I32Load { .. } => {}
             Instruction::I64Load { .. } => {}
@@ -186,10 +222,18 @@ impl CodeValidator {
             Instruction::I64Store32 { .. } => {}
             Instruction::MemorySize => {}
             Instruction::MemoryGrow => {}
-            Instruction::I32Const(_) => {}
-            Instruction::I64Const(_) => {}
-            Instruction::F32Const(_) => {}
-            Instruction::F64Const(_) => {}
+            Instruction::I32Const(_) => {
+                self.push_operand(ValueType::I32);
+            }
+            Instruction::I64Const(_) => {
+                self.push_operand(ValueType::I64);
+            }
+            Instruction::F32Const(_) => {
+                self.push_operand(ValueType::F32);
+            }
+            Instruction::F64Const(_) => {
+                self.push_operand(ValueType::F64);
+            }
             Instruction::I32Eqz => {}
             Instruction::I32Eq => {}
             Instruction::I32Ne => {}
@@ -227,21 +271,27 @@ impl CodeValidator {
             Instruction::I32Clz => {}
             Instruction::I32Ctz => {}
             Instruction::I32Popcnt => {}
-            Instruction::I32Add => {}
-            Instruction::I32Sub => {}
-            Instruction::I32Mul => {}
-            Instruction::I32Divs => {}
-            Instruction::I32Divu => {}
-            Instruction::I32Rems => {}
-            Instruction::I32Remu => {}
-            Instruction::I32And => {}
-            Instruction::I32Or => {}
-            Instruction::I32Xor => {}
-            Instruction::I32Shl => {}
-            Instruction::I32Shrs => {}
-            Instruction::I32Shru => {}
-            Instruction::I32Rotl => {}
-            Instruction::I32Rotr => {}
+
+            Instruction::I32Add |
+            Instruction::I32Sub |
+            Instruction::I32Mul |
+            Instruction::I32Divs |
+            Instruction::I32Divu |
+            Instruction::I32Rems |
+            Instruction::I32Remu |
+            Instruction::I32And |
+            Instruction::I32Or |
+            Instruction::I32Xor |
+            Instruction::I32Shl |
+            Instruction::I32Shrs |
+            Instruction::I32Shru |
+            Instruction::I32Rotl |
+            Instruction::I32Rotr => {
+                self.pop_expected_operand(Some(ValueType::I32))?;
+                self.pop_expected_operand(Some(ValueType::I32))?;
+                self.push_operand(ValueType::I32);
+            }
+
             Instruction::I64Clz => {}
             Instruction::I64Ctz => {}
             Instruction::I64Popcnt => {}

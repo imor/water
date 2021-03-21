@@ -20,5 +20,5 @@ pub(crate) mod preamble;
 mod branch_table;
 mod instruction;
 pub mod binary;
-mod section;
+pub mod section;
 mod common;
