@@ -568,88 +568,171 @@ impl CodeValidatorState {
                 self.pop_known(ValueType::I64)?;
                 self.push_known(ValueType::I64);
             }
-            Instruction::I64Add => {}
-            Instruction::I64Sub => {}
-            Instruction::I64Mul => {}
-            Instruction::I64Divs => {}
-            Instruction::I64Divu => {}
-            Instruction::I64Rems => {}
-            Instruction::I64Remu => {}
-            Instruction::I64And => {}
-            Instruction::I64Or => {}
-            Instruction::I64Xor => {}
-            Instruction::I64Shl => {}
-            Instruction::I64Shrs => {}
-            Instruction::I64Shru => {}
-            Instruction::I64Rotl => {}
-            Instruction::I64Rotr => {}
-
-            Instruction::F32Abs => {}
-            Instruction::F32Neg => {}
-            Instruction::F32Ceil => {}
-            Instruction::F32Floor => {}
-            Instruction::F32Trunc => {}
-            Instruction::F32Nearest => {}
-            Instruction::F32Sqrt => {}
-            Instruction::F32Add => {}
-            Instruction::F32Sub => {}
-            Instruction::F32Mul => {}
-            Instruction::F32Div => {}
-            Instruction::F32Min => {}
-            Instruction::F32Max => {}
-            Instruction::F32Copysign => {}
-            Instruction::F64Abs => {}
-            Instruction::F64Neg => {}
-            Instruction::F64Ceil => {}
-            Instruction::F64Floor => {}
-            Instruction::F64Trunc => {}
-            Instruction::F64Nearest => {}
-            Instruction::F64Sqrt => {}
-            Instruction::F64Add => {}
-            Instruction::F64Sub => {}
-            Instruction::F64Mul => {}
-            Instruction::F64Div => {}
-            Instruction::F64Min => {}
-            Instruction::F64Max => {}
-            Instruction::F64Copysign => {}
-            Instruction::I32WrapI64 => {}
-            Instruction::I32TruncF32s => {}
-            Instruction::I32TruncF32u => {}
-            Instruction::I32TruncF64s => {}
-            Instruction::I32TruncF64u => {}
-            Instruction::I64ExtendI32s => {}
-            Instruction::I64ExtendI32u => {}
-            Instruction::I64TruncF32s => {}
-            Instruction::I64TruncF32u => {}
-            Instruction::I64TruncF64s => {}
-            Instruction::I64TruncF64u => {}
-            Instruction::F32ConvertI32s => {}
-            Instruction::F32ConvertI32u => {}
-            Instruction::F32ConvertI64s => {}
-            Instruction::F32ConvertI64u => {}
-            Instruction::F32DemoteF64 => {}
-            Instruction::F64ConvertI32s => {}
-            Instruction::F64ConvertI32u => {}
-            Instruction::F64ConvertI64s => {}
-            Instruction::F64ConvertI64u => {}
-            Instruction::F64PromoteF32 => {}
-            Instruction::I32ReinterpretF32 => {}
-            Instruction::I64ReinterpretF64 => {}
-            Instruction::F32ReinterpretI32 => {}
-            Instruction::F64ReinterpretI64 => {}
-            Instruction::I32Extend8s => {}
-            Instruction::I32Extend16s => {}
-            Instruction::I64Extend8s => {}
-            Instruction::I64Extend16s => {}
-            Instruction::I64Extend32s => {}
-            Instruction::I32TruncSatF32s => {}
-            Instruction::I32TruncSatF32u => {}
-            Instruction::I32TruncSatF64s => {}
-            Instruction::I32TruncSatF64u => {}
-            Instruction::I64TruncSatF32s => {}
-            Instruction::I64TruncSatF32u => {}
-            Instruction::I64TruncSatF64s => {}
-            Instruction::I64TruncSatF64u => {}
+            Instruction::I64Add |
+            Instruction::I64Sub |
+            Instruction::I64Mul |
+            Instruction::I64Divs |
+            Instruction::I64Divu |
+            Instruction::I64Rems |
+            Instruction::I64Remu |
+            Instruction::I64And |
+            Instruction::I64Or |
+            Instruction::I64Xor |
+            Instruction::I64Shl |
+            Instruction::I64Shrs |
+            Instruction::I64Shru |
+            Instruction::I64Rotl |
+            Instruction::I64Rotr => {
+                self.pop_known(ValueType::I64)?;
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::I64);
+            }
+            Instruction::F32Abs |
+            Instruction::F32Neg |
+            Instruction::F32Ceil |
+            Instruction::F32Floor |
+            Instruction::F32Trunc |
+            Instruction::F32Nearest |
+            Instruction::F32Sqrt => {
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::F32);
+            }
+            Instruction::F32Add |
+            Instruction::F32Sub |
+            Instruction::F32Mul |
+            Instruction::F32Div |
+            Instruction::F32Min |
+            Instruction::F32Max |
+            Instruction::F32Copysign => {
+                self.pop_known(ValueType::F32)?;
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::F32);
+            }
+            Instruction::F64Abs |
+            Instruction::F64Neg |
+            Instruction::F64Ceil |
+            Instruction::F64Floor |
+            Instruction::F64Trunc |
+            Instruction::F64Nearest |
+            Instruction::F64Sqrt => {
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::F64);
+            }
+            Instruction::F64Add |
+            Instruction::F64Sub |
+            Instruction::F64Mul |
+            Instruction::F64Div |
+            Instruction::F64Min |
+            Instruction::F64Max |
+            Instruction::F64Copysign => {
+                self.pop_known(ValueType::F64)?;
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::F64);
+            }
+            Instruction::I32WrapI64 => {
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I32TruncF32s |
+            Instruction::I32TruncF32u => {
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I32TruncF64s |
+            Instruction::I32TruncF64u => {
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I64ExtendI32s |
+            Instruction::I64ExtendI32u => {
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::I64);
+            }
+            Instruction::I64TruncF32s |
+            Instruction::I64TruncF32u => {
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::I64);
+            }
+            Instruction::I64TruncF64s |
+            Instruction::I64TruncF64u => {
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::I64);
+            }
+            Instruction::F32ConvertI32s |
+            Instruction::F32ConvertI32u => {
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::F32);
+            }
+            Instruction::F32ConvertI64s |
+            Instruction::F32ConvertI64u => {
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::F32);
+            }
+            Instruction::F32DemoteF64 => {
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::F32);
+            }
+            Instruction::F64ConvertI32s |
+            Instruction::F64ConvertI32u => {
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::F64);
+            }
+            Instruction::F64ConvertI64s |
+            Instruction::F64ConvertI64u => {
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::F64);
+            }
+            Instruction::F64PromoteF32 => {
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::F64);
+            }
+            Instruction::I32ReinterpretF32 => {
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I64ReinterpretF64 => {
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::I64);
+            }
+            Instruction::F32ReinterpretI32 => {
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::F32);
+            }
+            Instruction::F64ReinterpretI64 => {
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::F64);
+            }
+            Instruction::I32Extend8s |
+            Instruction::I32Extend16s => {
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I64Extend8s |
+            Instruction::I64Extend16s |
+            Instruction::I64Extend32s => {
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::I64);
+            }
+            Instruction::I32TruncSatF32s |
+            Instruction::I32TruncSatF32u => {
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I32TruncSatF64s |
+            Instruction::I32TruncSatF64u => {
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I64TruncSatF32s |
+            Instruction::I64TruncSatF32u => {
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::I64);
+            }
+            Instruction::I64TruncSatF64s |
+            Instruction::I64TruncSatF64u => {
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::I64);
+            }
         }
 
         Ok(())
