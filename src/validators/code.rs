@@ -481,44 +481,68 @@ impl CodeValidatorState {
             Instruction::F64Const(_) => {
                 self.push_known(ValueType::F64);
             }
-            Instruction::I32Eqz => {}
-            Instruction::I32Eq => {}
-            Instruction::I32Ne => {}
-            Instruction::I32Lts => {}
-            Instruction::I32Ltu => {}
-            Instruction::I32Gts => {}
-            Instruction::I32Gtu => {}
-            Instruction::I32Les => {}
-            Instruction::I32Leu => {}
-            Instruction::I32Ges => {}
-            Instruction::I32Geu => {}
-            Instruction::I64Eqz => {}
-            Instruction::I64Eq => {}
-            Instruction::I64Ne => {}
-            Instruction::I64Lts => {}
-            Instruction::I64Ltu => {}
-            Instruction::I64Gts => {}
-            Instruction::I64Gtu => {}
-            Instruction::I64Les => {}
-            Instruction::I64Leu => {}
-            Instruction::I64Ges => {}
-            Instruction::I64Geu => {}
-            Instruction::F32Eq => {}
-            Instruction::F32Ne => {}
-            Instruction::F32Lt => {}
-            Instruction::F32Gt => {}
-            Instruction::F32Le => {}
-            Instruction::F32Ge => {}
-            Instruction::F64Eq => {}
-            Instruction::F64Ne => {}
-            Instruction::F64Lt => {}
-            Instruction::F64Gt => {}
-            Instruction::F64Le => {}
-            Instruction::F64Ge => {}
-            Instruction::I32Clz => {}
-            Instruction::I32Ctz => {}
-            Instruction::I32Popcnt => {}
-
+            Instruction::I32Eqz => {
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I32Eq |
+            Instruction::I32Ne |
+            Instruction::I32Lts |
+            Instruction::I32Ltu |
+            Instruction::I32Gts |
+            Instruction::I32Gtu |
+            Instruction::I32Les |
+            Instruction::I32Leu |
+            Instruction::I32Ges |
+            Instruction::I32Geu => {
+                self.pop_known(ValueType::I32)?;
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I64Eqz => {
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I64Eq |
+            Instruction::I64Ne |
+            Instruction::I64Lts |
+            Instruction::I64Ltu |
+            Instruction::I64Gts |
+            Instruction::I64Gtu |
+            Instruction::I64Les |
+            Instruction::I64Leu |
+            Instruction::I64Ges |
+            Instruction::I64Geu => {
+                self.pop_known(ValueType::I64)?;
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::F32Eq |
+            Instruction::F32Ne |
+            Instruction::F32Lt |
+            Instruction::F32Gt |
+            Instruction::F32Le |
+            Instruction::F32Ge => {
+                self.pop_known(ValueType::F32)?;
+                self.pop_known(ValueType::F32)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::F64Eq |
+            Instruction::F64Ne |
+            Instruction::F64Lt |
+            Instruction::F64Gt |
+            Instruction::F64Le |
+            Instruction::F64Ge => {
+                self.pop_known(ValueType::F64)?;
+                self.pop_known(ValueType::F64)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::I32Clz |
+            Instruction::I32Ctz |
+            Instruction::I32Popcnt => {
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::I32);
+            }
             Instruction::I32Add |
             Instruction::I32Sub |
             Instruction::I32Mul |
@@ -538,10 +562,12 @@ impl CodeValidatorState {
                 self.pop_known(ValueType::I32)?;
                 self.push_known(ValueType::I32);
             }
-
-            Instruction::I64Clz => {}
-            Instruction::I64Ctz => {}
-            Instruction::I64Popcnt => {}
+            Instruction::I64Clz |
+            Instruction::I64Ctz |
+            Instruction::I64Popcnt => {
+                self.pop_known(ValueType::I64)?;
+                self.push_known(ValueType::I64);
+            }
             Instruction::I64Add => {}
             Instruction::I64Sub => {}
             Instruction::I64Mul => {}
@@ -557,6 +583,7 @@ impl CodeValidatorState {
             Instruction::I64Shru => {}
             Instruction::I64Rotl => {}
             Instruction::I64Rotr => {}
+
             Instruction::F32Abs => {}
             Instruction::F32Neg => {}
             Instruction::F32Ceil => {}
