@@ -285,20 +285,42 @@ impl CodeValidatorState {
         last.unreachable = true;
     }
 
-    fn validate_memory(&mut self,
+    fn validate_memory_index_and_alignment(
         max_memory_index: Option<MemoryIndex>,
         memory_argument: &MemoryArgument,
         max_alignment: u32,
-        result_type: ValueType,
-    ) ->Result<()> {
+    ) -> Result<()> {
         if max_memory_index.is_none() {
             return Err(UndefinedMemory);
         }
         if memory_argument.alignment > max_alignment {
             return Err(InvalidMemoryAlignment);
         }
+
+        Ok(())
+    }
+
+    fn validate_load(&mut self,
+                     max_memory_index: Option<MemoryIndex>,
+                     memory_argument: &MemoryArgument,
+                     max_alignment: u32,
+                     result_type: ValueType,
+    ) -> Result<()> {
+        Self::validate_memory_index_and_alignment(max_memory_index, memory_argument, max_alignment)?;
         self.pop_known(ValueType::I32)?;
         self.push_known(result_type);
+        Ok(())
+    }
+
+    fn validate_store(&mut self,
+                      max_memory_index: Option<MemoryIndex>,
+                      memory_argument: &MemoryArgument,
+                      max_alignment: u32,
+                      param_type: ValueType,
+    ) -> Result<()> {
+        Self::validate_memory_index_and_alignment(max_memory_index, memory_argument, max_alignment)?;
+        self.pop_known(param_type)?;
+        self.pop_known(ValueType::I32)?;
         Ok(())
     }
 
@@ -364,56 +386,74 @@ impl CodeValidatorState {
                 }
             }
             Instruction::I32Load { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 2, ValueType::I32)?;
+                self.validate_load(max_memory_index, memory_argument, 2, ValueType::I32)?;
             }
             Instruction::I64Load { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 3, ValueType::I64)?;
+                self.validate_load(max_memory_index, memory_argument, 3, ValueType::I64)?;
             }
             Instruction::F32Load { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 2, ValueType::F32)?;
+                self.validate_load(max_memory_index, memory_argument, 2, ValueType::F32)?;
             }
             Instruction::F64Load { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 3, ValueType::F64)?;
+                self.validate_load(max_memory_index, memory_argument, 3, ValueType::F64)?;
             }
             Instruction::I32Load8s { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 0, ValueType::I32)?;
+                self.validate_load(max_memory_index, memory_argument, 0, ValueType::I32)?;
             }
             Instruction::I32Load8u { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 0, ValueType::I32)?;
+                self.validate_load(max_memory_index, memory_argument, 0, ValueType::I32)?;
             }
             Instruction::I32Load16s { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 1, ValueType::I32)?;
+                self.validate_load(max_memory_index, memory_argument, 1, ValueType::I32)?;
             }
             Instruction::I32Load16u { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 1, ValueType::I32)?;
+                self.validate_load(max_memory_index, memory_argument, 1, ValueType::I32)?;
             }
             Instruction::I64Load8s { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 0, ValueType::I64)?;
+                self.validate_load(max_memory_index, memory_argument, 0, ValueType::I64)?;
             }
             Instruction::I64Load8u { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 0, ValueType::I64)?;
+                self.validate_load(max_memory_index, memory_argument, 0, ValueType::I64)?;
             }
             Instruction::I64Load16s { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 1, ValueType::I64)?;
+                self.validate_load(max_memory_index, memory_argument, 1, ValueType::I64)?;
             }
             Instruction::I64Load16u { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 1, ValueType::I64)?;
+                self.validate_load(max_memory_index, memory_argument, 1, ValueType::I64)?;
             }
             Instruction::I64Load32s { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 2, ValueType::I64)?;
+                self.validate_load(max_memory_index, memory_argument, 2, ValueType::I64)?;
             }
             Instruction::I64Load32u { memory_argument } => {
-                self.validate_memory(max_memory_index, memory_argument, 2, ValueType::I64)?;
+                self.validate_load(max_memory_index, memory_argument, 2, ValueType::I64)?;
             }
-            Instruction::I32Store { .. } => {}
-            Instruction::I64Store { .. } => {}
-            Instruction::F32Store { .. } => {}
-            Instruction::F64Store { .. } => {}
-            Instruction::I32Store8 { .. } => {}
-            Instruction::I32Store16 { .. } => {}
-            Instruction::I64Store8 { .. } => {}
-            Instruction::I64Store16 { .. } => {}
-            Instruction::I64Store32 { .. } => {}
+            Instruction::I32Store { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 2, ValueType::I32)?;
+            }
+            Instruction::I64Store { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 3, ValueType::I64)?;
+            }
+            Instruction::F32Store { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 2, ValueType::F32)?;
+            }
+            Instruction::F64Store { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 3, ValueType::F64)?;
+            }
+            Instruction::I32Store8 { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 0, ValueType::I32)?;
+            }
+            Instruction::I32Store16 { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 1, ValueType::I32)?;
+            }
+            Instruction::I64Store8 { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 0, ValueType::I64)?;
+            }
+            Instruction::I64Store16 { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 1, ValueType::I64)?;
+            }
+            Instruction::I64Store32 { memory_argument } => {
+                self.validate_store(max_memory_index, memory_argument, 2, ValueType::I64)?;
+            }
             Instruction::MemorySize => {}
             Instruction::MemoryGrow => {}
             Instruction::I32Const(_) => {
