@@ -285,14 +285,20 @@ impl CodeValidatorState {
         last.unreachable = true;
     }
 
+    fn validate_memory_index(max_memory_index: Option<MemoryIndex>) -> Result<()> {
+        if max_memory_index.is_none() {
+            return Err(UndefinedMemory);
+        }
+
+        Ok(())
+    }
+
     fn validate_memory_index_and_alignment(
         max_memory_index: Option<MemoryIndex>,
         memory_argument: &MemoryArgument,
         max_alignment: u32,
     ) -> Result<()> {
-        if max_memory_index.is_none() {
-            return Err(UndefinedMemory);
-        }
+        Self::validate_memory_index(max_memory_index)?;
         if memory_argument.alignment > max_alignment {
             return Err(InvalidMemoryAlignment);
         }
@@ -454,8 +460,15 @@ impl CodeValidatorState {
             Instruction::I64Store32 { memory_argument } => {
                 self.validate_store(max_memory_index, memory_argument, 2, ValueType::I64)?;
             }
-            Instruction::MemorySize => {}
-            Instruction::MemoryGrow => {}
+            Instruction::MemorySize => {
+                Self::validate_memory_index(max_memory_index)?;
+                self.push_known(ValueType::I32);
+            }
+            Instruction::MemoryGrow => {
+                Self::validate_memory_index(max_memory_index)?;
+                self.pop_known(ValueType::I32)?;
+                self.push_known(ValueType::I32);
+            }
             Instruction::I32Const(_) => {
                 self.push_known(ValueType::I32);
             }
