@@ -422,15 +422,11 @@ impl<'a> Iterator for InstructionIterator<'a> {
     type Item = Result<Instruction<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
+        if self.done || self.instruction_reader.eof() {
             None
         } else {
             match self.instruction_reader.read() {
                 r @ Err(_) => {
-                    self.done = true;
-                    Some(r)
-                }
-                r @ Ok(Instruction::End) => {
                     self.done = true;
                     Some(r)
                 }
