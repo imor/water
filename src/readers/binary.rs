@@ -199,7 +199,8 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn create_branch_table_reader<'b>(&mut self) -> Result<BranchTableReader<'b>>
         where 'a: 'b
     {
-        BranchTableReader::new(self.buffer)
+        let (start, end) = BranchTableReader::skip_br_table(self)?;
+        BranchTableReader::new(&self.buffer[start..end])
     }
 
     pub(crate) fn read_string(&mut self) -> Result<&'a str> {

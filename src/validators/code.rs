@@ -348,7 +348,9 @@ impl CodeValidatorState {
             Instruction::End => {}
             Instruction::Branch { .. } => {}
             Instruction::BranchIf { .. } => {}
-            Instruction::BranchTable { .. } => {}
+            Instruction::BranchTable { .. } => {
+                self.pop_operand()?;
+            }
             Instruction::Return => {}
             Instruction::Call { .. } => {}
             Instruction::CallIndirect { .. } => {}
