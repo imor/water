@@ -1,6 +1,6 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
 use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 use crate::validators::code::Operand::{Unknown, Known};
@@ -17,7 +17,8 @@ pub enum CodeValidationError {
     InvalidFunctionIndex(FuncIndex),
     UndefinedMemory,
     InvalidMemoryAlignment,
-    TypeMismatch,
+    TypeMismatch{ expected: Operand, actual: Operand },
+    OperandStackEmpty,
 }
 
 impl From<CodeReaderError> for CodeValidationError {
@@ -147,22 +148,24 @@ impl<'a> CodeValidator<'a> {
 
 }
 
-#[derive(Eq, PartialEq)]
-enum Operand {
+#[derive(Debug, Eq, PartialEq)]
+pub enum Operand {
     Known(ValueType),
     Unknown,
 }
 
 impl Operand {
     fn is_known(&self) -> bool {
-        match self {
+        let result = match self {
             Known(_) => { true }
             Unknown => { false }
-        }
+        };
+        result
     }
 
     fn is_unknown(&self) -> bool {
-        !self.is_known()
+        let result = !self.is_known();
+        result
     }
 }
 
@@ -199,7 +202,7 @@ impl CodeValidatorState {
             if last.unreachable {
                 Ok(Unknown)
             } else {
-                Err(TypeMismatch)
+                Err(OperandStackEmpty)
             }
         } else {
             Ok(self.operand_stack.pop().unwrap())
@@ -225,7 +228,7 @@ impl CodeValidatorState {
         }
 
         if actual != expected {
-            return Err(TypeMismatch);
+            return Err(TypeMismatch { expected, actual });
         }
 
         Ok(actual)
@@ -363,7 +366,7 @@ impl CodeValidatorState {
                 let second = self.pop_operand()?;
                 //TODO:should unknown operands be allowed here?
                 if first.is_unknown() || second.is_unknown() || first != second {
-                    return Err(TypeMismatch);
+                    return Err(TypeMismatch { expected: first, actual: second });
                 }
                 self.push_operand(second);
             }
