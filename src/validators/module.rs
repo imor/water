@@ -225,7 +225,7 @@ impl ValidationContext {
     fn add_import_desc(&mut self, import_desc: &ImportDescriptor) {
         match import_desc {
             ImportDescriptor::Func { type_index } => {
-                self.function_type_indices.push(*type_index);
+                //self.function_type_indices.push(*type_index);
             }
             ImportDescriptor::Table(table_type) => {
                 self.add_table_type(table_type);
