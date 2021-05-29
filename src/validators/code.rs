@@ -370,6 +370,25 @@ impl CodeValidatorState {
         Ok(())
     }
 
+    fn validate_block_type(&mut self, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
+        match block_type {
+            BlockType::Empty => {}
+            BlockType::ValueType(_) => {}
+            BlockType::TypeIndex(type_index) => {
+                let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                    function_type
+                } else {
+                    return Err(InvalidTypeIndex(type_index));
+                };
+                for param in ty.params.into_iter().rev() {
+                    self.pop_known(*param)?;
+                }
+            }
+        }
+        self.push_control_frame(block_type);
+        Ok(())
+    }
+
     fn validate_instruction(&mut self,
                             instruction: &Instruction,
                             globals: &[GlobalType],
@@ -386,23 +405,12 @@ impl CodeValidatorState {
             Instruction::Nop => {}
             Instruction::Block { block_type } |
             Instruction::Loop { block_type } => {
-                match block_type {
-                    BlockType::Empty => {}
-                    BlockType::ValueType(_) => {}
-                    BlockType::TypeIndex(type_index) => {
-                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
-                            function_type
-                        } else {
-                            return Err(InvalidTypeIndex(*type_index));
-                        };
-                        for param in ty.params.into_iter().rev() {
-                            self.pop_known(*param)?;
-                        }
-                    }
-                }
-                self.push_control_frame(*block_type);
+                self.validate_block_type(*block_type, function_types)?;
             }
-            Instruction::If { .. } => {}
+            Instruction::If { block_type } => {
+                self.pop_known(ValueType::I32)?;
+                self.validate_block_type(*block_type, function_types)?;
+            }
             Instruction::Else => {}
             Instruction::End => {}
             Instruction::Branch { .. } => {}
