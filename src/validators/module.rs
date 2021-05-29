@@ -175,6 +175,7 @@ struct ValidationContext {
     function_types: Vec<FunctionType>,
     globals: Vec<GlobalType>,
     function_type_indices: Vec<TypeIndex>,
+    num_func_imports: u32,
     max_table_index: Option<TableIndex>,
     max_memory_index: Option<MemoryIndex>,
 }
@@ -185,6 +186,7 @@ impl ValidationContext {
             function_types: Vec::new(),
             globals: Vec::new(),
             function_type_indices: Vec::new(),
+            num_func_imports: 0,
             max_table_index: None,
             max_memory_index: None,
         }
@@ -224,8 +226,9 @@ impl ValidationContext {
 
     fn add_import_desc(&mut self, import_desc: &ImportDescriptor) {
         match import_desc {
-            ImportDescriptor::Func { type_index: _ } => {
-                //self.function_type_indices.push(*type_index);
+            ImportDescriptor::Func { type_index } => {
+                self.num_func_imports += 1;
+                self.add_type_index(*type_index);
             }
             ImportDescriptor::Table(table_type) => {
                 self.add_table_type(table_type);
@@ -360,7 +363,7 @@ impl Validator {
                                 &self.context.globals,
                                 &self.context.function_types,
                                 &self.context.function_type_indices,
-                                FuncIndex(function_index),
+                                FuncIndex(function_index + self.context.num_func_imports),
                                 self.context.get_max_table_index(),
                                 self.context.get_max_memory_index(),
                             )?;

@@ -81,6 +81,23 @@ struct ControlFrame {
     unreachable: bool,
 }
 
+fn get_func_type<'a>(
+    function_types: &'a [FunctionType],
+    function_type_indices: &[TypeIndex],
+    function_index: FuncIndex
+) -> Result<&'a FunctionType> {
+    Ok(if let Some(func_type_index) = function_type_indices.get(function_index.0 as usize) {
+        if let Some(function_type) = function_types.get(func_type_index.0 as usize) {
+            function_type
+        } else {
+            return Err(InvalidTypeIndex(*func_type_index));
+        }
+    } else {
+        return Err(InvalidFunctionIndex(function_index));
+    })
+}
+
+
 pub struct CodeValidator<'a> {
     code: Code<'a>,
 }
@@ -111,14 +128,14 @@ impl<'a> CodeValidator<'a> {
         for instruction in instruction_reader {
             let instruction = instruction?;
             println!("Validating instruction: {:?}", instruction);
-            state.validate_instruction(&instruction, globals, &locals, function_types, max_table_index, max_memory_index)?;
+            state.validate_instruction(&instruction, globals, &locals, function_types, function_type_indices, max_table_index, max_memory_index)?;
         }
         Ok(())
     }
 
     fn create_locals(&self,
                      mut locals_reader: LocalsReader,
-                     function_types: &[FunctionType],
+                     function_types: &'a [FunctionType],
                      function_type_indices: &[TypeIndex],
                      function_index: FuncIndex
     ) -> Result<(Vec<ValueType>, LocalsIterationProof)> {
@@ -126,15 +143,8 @@ impl<'a> CodeValidator<'a> {
         //this can be represented more compactly which allows binary search
         //over that compressed representation. Use that representation.
         let mut locals = Vec::new();
-        let params = if let Some(func_type_index) = function_type_indices.get(function_index.0 as usize) {
-            if let Some(function_type) = function_types.get(func_type_index.0 as usize) {
-                &function_type.params
-            } else {
-                return Err(InvalidTypeIndex(*func_type_index));
-            }
-        } else {
-            return Err(InvalidFunctionIndex(function_index));
-        };
+        let function_type = get_func_type(function_types, function_type_indices, function_index)?;
+        let params = &function_type.params;
         for param in params.into_iter() {
             locals.push(*param);
         }
@@ -343,11 +353,23 @@ impl CodeValidatorState {
         Ok(())
     }
 
+    fn validate_function_type(&mut self, ty: &FunctionType) -> Result<()> {
+        for param in ty.params.into_iter().rev() {
+            self.pop_known(*param)?;
+        }
+        for result in ty.results.into_iter() {
+            self.push_known(*result);
+        }
+
+        Ok(())
+    }
+
     fn validate_instruction(&mut self,
                             instruction: &Instruction,
                             globals: &[GlobalType],
                             locals: &[ValueType],
                             function_types: &[FunctionType],
+                            function_type_indices: &[TypeIndex],
                             max_table_index: Option<TableIndex>,
                             max_memory_index: Option<MemoryIndex>,
     ) -> Result<()> {
@@ -367,17 +389,15 @@ impl CodeValidatorState {
                 self.pop_operand()?;
             }
             Instruction::Return => {}
-            Instruction::Call { .. } => {}
+            Instruction::Call { func_index } => {
+                let ty = get_func_type(function_types, function_type_indices, *func_index)?;
+                self.validate_function_type(ty)?;
+            }
             Instruction::CallIndirect { type_index } => {
                 Self::validate_table_index(max_table_index)?;
                 if let Some(ty) = function_types.get(type_index.0 as usize) {
                     self.pop_known(ValueType::I32)?;
-                    for param in ty.params.into_iter().rev() {
-                        self.pop_known(*param)?;
-                    }
-                    for result in ty.results.into_iter() {
-                        self.push_known(*result);
-                    }
+                    self.validate_function_type(ty)?;
                 } else {
                     return Err(InvalidTypeIndex(*type_index));
                 }
