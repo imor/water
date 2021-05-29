@@ -1,5 +1,5 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
-use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex};
+use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex, BlockType};
 use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
@@ -75,10 +75,20 @@ pub fn is_expr_const_and_of_right_type(
 }
 
 struct ControlFrame {
-    label_types: Vec<ValueType>,
-    end_types: Vec<ValueType>,
+    block_type: BlockType,
     height: usize,
     unreachable: bool,
+}
+
+fn get_func_type_index(
+    function_type_indices: &[TypeIndex],
+    function_index: FuncIndex
+) -> Result<TypeIndex> {
+    Ok(if let Some(func_type_index) = function_type_indices.get(function_index.0 as usize) {
+        *func_type_index
+    } else {
+        return Err(InvalidFunctionIndex(function_index));
+    })
 }
 
 fn get_func_type<'a>(
@@ -86,17 +96,13 @@ fn get_func_type<'a>(
     function_type_indices: &[TypeIndex],
     function_index: FuncIndex
 ) -> Result<&'a FunctionType> {
-    Ok(if let Some(func_type_index) = function_type_indices.get(function_index.0 as usize) {
-        if let Some(function_type) = function_types.get(func_type_index.0 as usize) {
-            function_type
-        } else {
-            return Err(InvalidTypeIndex(*func_type_index));
-        }
+    let func_type_index = get_func_type_index(function_type_indices, function_index)?;
+    Ok(if let Some(function_type) = function_types.get(func_type_index.0 as usize) {
+        function_type
     } else {
-        return Err(InvalidFunctionIndex(function_index));
+        return Err(InvalidTypeIndex(func_type_index));
     })
 }
-
 
 pub struct CodeValidator<'a> {
     code: Code<'a>,
@@ -115,7 +121,8 @@ impl<'a> CodeValidator<'a> {
                     max_table_index: Option<TableIndex>,
                     max_memory_index: Option<MemoryIndex>,
     ) -> Result<()> {
-        let mut state = CodeValidatorState::new();
+        let func_type_index = get_func_type_index(function_type_indices, function_index)?;
+        let mut state = CodeValidatorState::new(func_type_index);
         let locals_reader = self.code.get_locals_reader()?;
         let (locals, locals_iteration_proof) = self.create_locals(
             locals_reader,
@@ -187,12 +194,11 @@ struct CodeValidatorState {
 }
 
 impl CodeValidatorState {
-    fn new() -> CodeValidatorState {
+    fn new(type_index: TypeIndex) -> CodeValidatorState {
         CodeValidatorState {
             operand_stack: Vec::new(),
             control_stack: vec![ControlFrame {
-                label_types:Vec::new(),
-                end_types: Vec::new(),
+                block_type: BlockType::TypeIndex(type_index),
                 height: 0,
                 unreachable: false
             }]
@@ -253,9 +259,9 @@ impl CodeValidatorState {
     //     Ok(())
     // }
 
-    fn push_control_frame(&mut self, label_types: Vec<ValueType>, end_types: Vec<ValueType>) {
+    fn push_control_frame(&mut self, block_type: BlockType) {
         let height = self.operand_stack.len();
-        let frame = ControlFrame { label_types, end_types, height, unreachable: false };
+        let frame = ControlFrame { block_type, height, unreachable: false };
         self.control_stack.push(frame);
     }
 
@@ -378,7 +384,23 @@ impl CodeValidatorState {
                 self.unreachable();
             }
             Instruction::Nop => {}
-            Instruction::Block { .. } => {}
+            Instruction::Block { block_type } => {
+                match block_type {
+                    BlockType::Empty => {}
+                    BlockType::ValueType(_) => {}
+                    BlockType::TypeIndex(type_index) => {
+                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                            function_type
+                        } else {
+                            return Err(InvalidTypeIndex(*type_index));
+                        };
+                        for param in ty.params.into_iter().rev() {
+                            self.pop_known(*param)?;
+                        }
+                    }
+                }
+                self.push_control_frame(*block_type);
+            }
             Instruction::Loop { .. } => {}
             Instruction::If { .. } => {}
             Instruction::Else => {}
@@ -390,9 +412,20 @@ impl CodeValidatorState {
             }
             Instruction::Return => {
                 //TODO:Get rid of the clone
-                let end_types = &self.control_stack[0].end_types.clone();
-                for param in end_types.into_iter().rev() {
-                    self.pop_known(*param)?;
+                match self.control_stack[0].block_type {
+                    BlockType::Empty => {}
+                    BlockType::ValueType(ty) => {
+                        self.pop_known(ty)?;
+                    }
+                    BlockType::TypeIndex(type_index) => {
+                        if let Some(ty) = function_types.get(type_index.0 as usize) {
+                            for param in ty.results.into_iter().rev() {
+                                self.pop_known(*param)?;
+                            }
+                        } else {
+                            return Err(InvalidTypeIndex(type_index));
+                        }
+                    }
                 }
                 self.unreachable();
             }

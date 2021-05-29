@@ -112,7 +112,7 @@ pub struct Locals {
     pub value_type: ValueType,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum BlockType {
     Empty,
     ValueType(ValueType),
