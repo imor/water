@@ -388,7 +388,14 @@ impl CodeValidatorState {
             Instruction::BranchTable { .. } => {
                 self.pop_operand()?;
             }
-            Instruction::Return => {}
+            Instruction::Return => {
+                //TODO:Get rid of the clone
+                let end_types = &self.control_stack[0].end_types.clone();
+                for param in end_types.into_iter().rev() {
+                    self.pop_known(*param)?;
+                }
+                self.unreachable();
+            }
             Instruction::Call { func_index } => {
                 let ty = get_func_type(function_types, function_type_indices, *func_index)?;
                 self.validate_function_type(ty)?;
