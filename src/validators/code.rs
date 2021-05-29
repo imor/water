@@ -1,6 +1,6 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
-use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty};
+use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 use crate::validators::code::Operand::{Unknown, Known};
@@ -16,6 +16,7 @@ pub enum CodeValidationError {
     InvalidTypeIndex(TypeIndex),
     InvalidFunctionIndex(FuncIndex),
     UndefinedMemory,
+    UndefinedTable,
     InvalidMemoryAlignment,
     TypeMismatch{ expected: Operand, actual: Operand },
     OperandStackEmpty,
@@ -94,6 +95,7 @@ impl<'a> CodeValidator<'a> {
                     function_types: &[FunctionType],
                     function_type_indices: &[TypeIndex],
                     function_index: FuncIndex,
+                    max_table_index: Option<TableIndex>,
                     max_memory_index: Option<MemoryIndex>,
     ) -> Result<()> {
         let mut state = CodeValidatorState::new();
@@ -109,7 +111,7 @@ impl<'a> CodeValidator<'a> {
         for instruction in instruction_reader {
             let instruction = instruction?;
             println!("Validating instruction: {:?}", instruction);
-            state.validate_instruction(&instruction, globals, &locals, max_memory_index)?;
+            state.validate_instruction(&instruction, globals, &locals, function_types, max_table_index, max_memory_index)?;
         }
         Ok(())
     }
@@ -288,6 +290,14 @@ impl CodeValidatorState {
         last.unreachable = true;
     }
 
+    fn validate_table_index(max_table_index: Option<TableIndex>) -> Result<()> {
+        if max_table_index.is_none() {
+            return Err(UndefinedTable);
+        }
+
+        Ok(())
+    }
+
     fn validate_memory_index(max_memory_index: Option<MemoryIndex>) -> Result<()> {
         if max_memory_index.is_none() {
             return Err(UndefinedMemory);
@@ -337,6 +347,8 @@ impl CodeValidatorState {
                             instruction: &Instruction,
                             globals: &[GlobalType],
                             locals: &[ValueType],
+                            function_types: &[FunctionType],
+                            max_table_index: Option<TableIndex>,
                             max_memory_index: Option<MemoryIndex>,
     ) -> Result<()> {
         match instruction {
@@ -356,7 +368,20 @@ impl CodeValidatorState {
             }
             Instruction::Return => {}
             Instruction::Call { .. } => {}
-            Instruction::CallIndirect { .. } => {}
+            Instruction::CallIndirect { type_index } => {
+                Self::validate_table_index(max_table_index)?;
+                if let Some(ty) = function_types.get(type_index.0 as usize) {
+                    self.pop_known(ValueType::I32)?;
+                    for param in ty.params.into_iter().rev() {
+                        self.pop_known(*param)?;
+                    }
+                    for result in ty.results.into_iter() {
+                        self.push_known(*result);
+                    }
+                } else {
+                    return Err(InvalidTypeIndex(*type_index));
+                }
+            }
             Instruction::Drop => {
                 self.pop_operand()?;
             }

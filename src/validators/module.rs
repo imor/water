@@ -224,7 +224,7 @@ impl ValidationContext {
 
     fn add_import_desc(&mut self, import_desc: &ImportDescriptor) {
         match import_desc {
-            ImportDescriptor::Func { type_index } => {
+            ImportDescriptor::Func { type_index: _ } => {
                 //self.function_type_indices.push(*type_index);
             }
             ImportDescriptor::Table(table_type) => {
@@ -361,6 +361,7 @@ impl Validator {
                                 &self.context.function_types,
                                 &self.context.function_type_indices,
                                 FuncIndex(function_index),
+                                self.context.get_max_table_index(),
                                 self.context.get_max_memory_index(),
                             )?;
                             function_index += 1;
