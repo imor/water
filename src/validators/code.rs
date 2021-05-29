@@ -384,7 +384,8 @@ impl CodeValidatorState {
                 self.unreachable();
             }
             Instruction::Nop => {}
-            Instruction::Block { block_type } => {
+            Instruction::Block { block_type } |
+            Instruction::Loop { block_type } => {
                 match block_type {
                     BlockType::Empty => {}
                     BlockType::ValueType(_) => {}
@@ -401,7 +402,6 @@ impl CodeValidatorState {
                 }
                 self.push_control_frame(*block_type);
             }
-            Instruction::Loop { .. } => {}
             Instruction::If { .. } => {}
             Instruction::Else => {}
             Instruction::End => {}
