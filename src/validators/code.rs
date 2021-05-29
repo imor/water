@@ -1,6 +1,6 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
 use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex, BlockType};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable, ValuesAtEndOfBlock};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 use crate::validators::code::Operand::{Unknown, Known};
@@ -18,7 +18,8 @@ pub enum CodeValidationError {
     UndefinedMemory,
     UndefinedTable,
     InvalidMemoryAlignment,
-    TypeMismatch{ expected: Operand, actual: Operand },
+    TypeMismatch { expected: Operand, actual: Operand },
+    ValuesAtEndOfBlock,
     OperandStackEmpty,
 }
 
@@ -265,23 +266,33 @@ impl CodeValidatorState {
         self.control_stack.push(frame);
     }
 
-    // fn pop_control_frame(&mut self) -> Result<Vec<ValueType>> {
-    //     if self.control_stack.is_empty() {
-    //         return Err(TypeMismatch);
-    //     }
-    //
-    //     let last = self.control_stack.last().unwrap();
-    //     let height = last.height;
-    //     //self.pop_operands(&last.end_types)?;//.map::<Vec<ValueType>, dyn FnOnce(()) -> Vec<ValueType>>(|r| Vec::new())?;
-    //     for expected in last.end_types.iter().rev() {
-    //         self.pop_expected_operand(Some(*expected))?;
-    //     }
-    //     if self.operand_stack.len() != height as usize {
-    //         return Err(TypeMismatch);
-    //     }
-    //     self.control_stack.pop();
-    //     Ok(last.end_types.clone())
-    // }
+    fn pop_control_frame(&mut self, function_types: &[FunctionType]) -> Result<ControlFrame> {
+        let last = self.control_stack.last().unwrap();
+        let height = last.height;
+
+        match last.block_type {
+            BlockType::Empty => {}
+            BlockType::ValueType(ty) => {
+                self.pop_known(ty)?;
+            }
+            BlockType::TypeIndex(type_index) => {
+                let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                    function_type
+                } else {
+                    return Err(InvalidTypeIndex(type_index));
+                };
+                for param in ty.results.into_iter().rev() {
+                    self.pop_known(*param)?;
+                }
+            }
+        }
+
+        if self.operand_stack.len() != height as usize {
+            return Err(ValuesAtEndOfBlock);
+        }
+
+        Ok(self.control_stack.pop().unwrap())
+    }
 
     fn get_local(locals: &[ValueType], local_index: LocalIndex) -> Result<&ValueType> {
         if let Some(local_type) = locals.get(local_index.0 as usize) {
@@ -411,7 +422,10 @@ impl CodeValidatorState {
                 self.pop_known(ValueType::I32)?;
                 self.validate_block_type(*block_type, function_types)?;
             }
-            Instruction::Else => {}
+            Instruction::Else => {
+                let frame = self.pop_control_frame(function_types)?;
+                self.push_control_frame(frame.block_type);
+            }
             Instruction::End => {}
             Instruction::Branch { .. } => {}
             Instruction::BranchIf { .. } => {}
