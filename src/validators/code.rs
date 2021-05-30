@@ -423,7 +423,7 @@ impl CodeValidatorState {
         }
     }
 
-    fn validate_label_types(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
+    fn validate_label_types_rev(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
         match kind {
             ControlFrameKind::Loop => {
                 match block_type {
@@ -463,6 +463,46 @@ impl CodeValidatorState {
         Ok(())
     }
 
+    fn validate_label_types(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
+        match kind {
+            ControlFrameKind::Loop => {
+                match block_type {
+                    BlockType::Empty => {}
+                    BlockType::ValueType(_) => {}
+                    BlockType::TypeIndex(type_index) => {
+                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                            function_type
+                        } else {
+                            return Err(InvalidTypeIndex(type_index));
+                        };
+                        for param in ty.params.into_iter() {
+                            self.push_known(*param);
+                        }
+                    }
+                }
+            }
+            _ => {
+                match block_type {
+                    BlockType::Empty => {}
+                    BlockType::ValueType(ty) => {
+                        self.push_known(ty);
+                    }
+                    BlockType::TypeIndex(type_index) => {
+                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                            function_type
+                        } else {
+                            return Err(InvalidTypeIndex(type_index));
+                        };
+                        for result in ty.results.into_iter() {
+                            self.push_known(*result);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn validate_instruction(&mut self,
                             instruction: &Instruction,
                             globals: &[GlobalType],
@@ -492,10 +532,15 @@ impl CodeValidatorState {
             Instruction::End => {}
             Instruction::Branch { label_index } => {
                 let (kind, ty) = self.validate_jump(*label_index)?;
+                self.validate_label_types_rev(kind, ty, function_types)?;
+                self.unreachable();
+            }
+            Instruction::BranchIf { label_index } => {
+                let (kind, ty) = self.validate_jump(*label_index)?;
+                self.validate_label_types_rev(kind, ty, function_types)?;
                 self.validate_label_types(kind, ty, function_types)?;
                 self.unreachable();
             }
-            Instruction::BranchIf { .. } => {}
             Instruction::BranchTable { .. } => {
                 self.pop_operand()?;
             }
