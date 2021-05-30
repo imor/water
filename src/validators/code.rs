@@ -1,6 +1,6 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError, BranchReaderError};
 use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex, BlockType, LabelIndex, Choice};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable, ValuesAtEndOfBlock, InvalidLabelIndex, TargetLabelsTypeMismatch};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable, ValuesAtEndOfBlock, InvalidLabelIndex, TargetLabelsTypeMismatch, ElseWithoutIf};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 use crate::validators::code::Operand::{Unknown, Known};
@@ -22,6 +22,7 @@ pub enum CodeValidationError {
     InvalidMemoryAlignment,
     TypeMismatch { expected: Operand, actual: Operand },
     TargetLabelsTypeMismatch,
+    ElseWithoutIf,
     ValuesAtEndOfBlock,
     OperandStackEmpty,
 }
@@ -453,7 +454,12 @@ impl CodeValidatorState {
             }
             Instruction::Else => {
                 let frame = self.pop_control_frame(function_types)?;
-                self.push_control_frame(ControlFrameKind::Else, frame.block_type);
+                match frame.kind {
+                    ControlFrameKind::If => {
+                        self.push_control_frame(ControlFrameKind::Else, frame.block_type);
+                    }
+                    _ => { return Err(ElseWithoutIf) }
+                }
             }
             Instruction::End => {}
             Instruction::Branch { label_index } => {
