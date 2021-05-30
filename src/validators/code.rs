@@ -1,6 +1,6 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
-use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex, BlockType};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable, ValuesAtEndOfBlock};
+use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex, BlockType, LabelIndex};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable, ValuesAtEndOfBlock, InvalidLabelIndex};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 use crate::validators::code::Operand::{Unknown, Known};
@@ -15,6 +15,7 @@ pub enum CodeValidationError {
     InvalidLocalIndex(LocalIndex),
     InvalidTypeIndex(TypeIndex),
     InvalidFunctionIndex(FuncIndex),
+    InvalidLabelIndex(LabelIndex),
     UndefinedMemory,
     UndefinedTable,
     InvalidMemoryAlignment,
@@ -76,6 +77,7 @@ pub fn is_expr_const_and_of_right_type(
 }
 
 struct ControlFrame {
+    kind: ControlFrameKind,
     block_type: BlockType,
     height: usize,
     unreachable: bool,
@@ -189,6 +191,14 @@ impl Operand {
     }
 }
 
+#[derive(PartialEq, Copy, Clone)]
+enum ControlFrameKind {
+    Block,
+    If,
+    Else,
+    Loop,
+}
+
 struct CodeValidatorState {
     operand_stack: Vec<Operand>,
     control_stack: Vec<ControlFrame>,
@@ -199,6 +209,7 @@ impl CodeValidatorState {
         CodeValidatorState {
             operand_stack: Vec::new(),
             control_stack: vec![ControlFrame {
+                kind: ControlFrameKind::Block,
                 block_type: BlockType::TypeIndex(type_index),
                 height: 0,
                 unreachable: false
@@ -232,10 +243,10 @@ impl CodeValidatorState {
         self.pop_expected(Known(expected))
     }
 
-    fn pop_unknown(&mut self) -> Result<Operand> {
-        self.pop_expected(Unknown)
-    }
-
+    // fn pop_unknown(&mut self) -> Result<Operand> {
+    //     self.pop_expected(Unknown)
+    // }
+    //
     fn pop_expected(&mut self, expected: Operand) -> Result<Operand> {
         let actual = self.pop_operand()?;
         if actual.is_unknown() {
@@ -260,9 +271,9 @@ impl CodeValidatorState {
     //     Ok(())
     // }
 
-    fn push_control_frame(&mut self, block_type: BlockType) {
+    fn push_control_frame(&mut self, kind: ControlFrameKind, block_type: BlockType) {
         let height = self.operand_stack.len();
-        let frame = ControlFrame { block_type, height, unreachable: false };
+        let frame = ControlFrame { kind, block_type, height, unreachable: false };
         self.control_stack.push(frame);
     }
 
@@ -381,7 +392,7 @@ impl CodeValidatorState {
         Ok(())
     }
 
-    fn validate_block_type(&mut self, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
+    fn validate_block_type(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
         match block_type {
             BlockType::Empty => {}
             BlockType::ValueType(_) => {}
@@ -396,7 +407,59 @@ impl CodeValidatorState {
                 }
             }
         }
-        self.push_control_frame(block_type);
+        self.push_control_frame(kind, block_type);
+        Ok(())
+    }
+
+    fn validate_jump(&mut self, label_index: LabelIndex) -> Result<(ControlFrameKind, BlockType)> {
+        return match (self.control_stack.len() - 1).checked_sub(label_index.0 as usize) {
+            None => {
+                Err(InvalidLabelIndex(label_index))
+            }
+            Some(i) => {
+                let frame = &self.control_stack[i];
+                Ok((frame.kind, frame.block_type))
+            }
+        }
+    }
+
+    fn validate_label_types(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
+        match kind {
+            ControlFrameKind::Loop => {
+                match block_type {
+                    BlockType::Empty => {}
+                    BlockType::ValueType(_) => {}
+                    BlockType::TypeIndex(type_index) => {
+                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                            function_type
+                        } else {
+                            return Err(InvalidTypeIndex(type_index));
+                        };
+                        for param in ty.params.into_iter().rev() {
+                            self.pop_known(*param)?;
+                        }
+                    }
+                }
+            }
+            _ => {
+                match block_type {
+                    BlockType::Empty => {}
+                    BlockType::ValueType(ty) => {
+                        self.pop_known(ty)?;
+                    }
+                    BlockType::TypeIndex(type_index) => {
+                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                            function_type
+                        } else {
+                            return Err(InvalidTypeIndex(type_index));
+                        };
+                        for result in ty.results.into_iter().rev() {
+                            self.pop_known(*result)?;
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -416,18 +479,22 @@ impl CodeValidatorState {
             Instruction::Nop => {}
             Instruction::Block { block_type } |
             Instruction::Loop { block_type } => {
-                self.validate_block_type(*block_type, function_types)?;
+                self.validate_block_type(ControlFrameKind::Loop, *block_type, function_types)?;
             }
             Instruction::If { block_type } => {
                 self.pop_known(ValueType::I32)?;
-                self.validate_block_type(*block_type, function_types)?;
+                self.validate_block_type(ControlFrameKind::If, *block_type, function_types)?;
             }
             Instruction::Else => {
                 let frame = self.pop_control_frame(function_types)?;
-                self.push_control_frame(frame.block_type);
+                self.push_control_frame(ControlFrameKind::Else, frame.block_type);
             }
             Instruction::End => {}
-            Instruction::Branch { .. } => {}
+            Instruction::Branch { label_index } => {
+                let (kind, ty) = self.validate_jump(*label_index)?;
+                self.validate_label_types(kind, ty, function_types)?;
+                self.unreachable();
+            }
             Instruction::BranchIf { .. } => {}
             Instruction::BranchTable { .. } => {
                 self.pop_operand()?;
