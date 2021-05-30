@@ -401,19 +401,8 @@ impl CodeValidatorState {
     }
 
     fn validate_block_type(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
-        match block_type {
-            BlockType::Empty => {}
-            BlockType::ValueType(_) => {}
-            BlockType::TypeIndex(type_index) => {
-                let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
-                    function_type
-                } else {
-                    return Err(InvalidTypeIndex(type_index));
-                };
-                for param in ty.params.into_iter().rev() {
-                    self.pop_known(*param)?;
-                }
-            }
+        for ty in block_type.params(function_types)? {
+            self.pop_known(ty)?;
         }
         self.push_control_frame(kind, block_type);
         Ok(())
@@ -452,7 +441,9 @@ impl CodeValidatorState {
                 self.unreachable();
             }
             Instruction::Nop => {}
-            Instruction::Block { block_type } |
+            Instruction::Block { block_type } => {
+                self.validate_block_type(ControlFrameKind::Block, *block_type, function_types)?;
+            }
             Instruction::Loop { block_type } => {
                 self.validate_block_type(ControlFrameKind::Loop, *block_type, function_types)?;
             }
