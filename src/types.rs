@@ -1,4 +1,7 @@
 use crate::{BranchTableReader, InstructionReader};
+use std::ops::Range;
+use crate::validators::code::CodeValidationError;
+use std::iter::empty;
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord)]
 pub struct TypeIndex(pub(crate) u32);
@@ -33,6 +36,62 @@ pub enum ValueType {
 pub struct FunctionType {
     pub(crate) params: Box<[ValueType]>,
     pub(crate) results: Box<[ValueType]>,
+}
+
+impl FunctionType {
+    fn params(&self) -> FunctionTypeParams {
+        FunctionTypeParams { function_type: self, range: 0..self.params.len() }
+    }
+
+    fn results(&self) -> FunctionTypeResults {
+        FunctionTypeResults { function_type: self, range: 0..self.results.len() }
+    }
+}
+
+pub struct FunctionTypeParams<'a> {
+    function_type: &'a FunctionType,
+    range: Range<usize>,
+}
+
+impl Iterator for FunctionTypeParams<'_> {
+    type Item = ValueType;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.range.next().map(|i| *self.function_type.params.get(i).unwrap())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
+}
+
+impl DoubleEndedIterator for FunctionTypeParams<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.range.next_back().map(|i| *self.function_type.params.get(i).unwrap())
+    }
+}
+
+pub struct FunctionTypeResults<'a> {
+    function_type: &'a FunctionType,
+    range: Range<usize>,
+}
+
+impl Iterator for FunctionTypeResults<'_> {
+    type Item = ValueType;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.range.next().map(|i| *self.function_type.results.get(i).unwrap())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
+}
+
+impl DoubleEndedIterator for FunctionTypeResults<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.range.next_back().map(|i| *self.function_type.results.get(i).unwrap())
+    }
 }
 
 #[derive(Debug)]
@@ -112,11 +171,74 @@ pub struct Locals {
     pub value_type: ValueType,
 }
 
+pub enum Choice<A, B> {
+    EitherA(A),
+    OrB(B),
+}
+
+impl<A, B> Iterator for Choice<A, B>
+    where
+        A: Iterator,
+        B: Iterator<Item = A::Item>,
+{
+    type Item = A::Item;
+    fn next(&mut self) -> Option<A::Item> {
+        match self {
+            Choice::EitherA(a) => a.next(),
+            Choice::OrB(b) => b.next(),
+        }
+    }
+}
+
+impl<A, B> DoubleEndedIterator for Choice<A, B>
+    where
+        A: DoubleEndedIterator,
+        B: DoubleEndedIterator<Item = A::Item>,
+{
+    fn next_back(&mut self) -> Option<A::Item> {
+        match self {
+            Choice::EitherA(a) => a.next_back(),
+            Choice::OrB(b) => b.next_back(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum BlockType {
     Empty,
     ValueType(ValueType),
     TypeIndex(TypeIndex),
+}
+
+impl BlockType {
+    pub(crate) fn params<'a>(&self, function_types: &'a [FunctionType]) -> Result<impl DoubleEndedIterator<Item = ValueType> + 'a, CodeValidationError> {
+        return Ok(match self {
+            BlockType::TypeIndex(type_index) => {
+                let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                    function_type
+                } else {
+                    return Err(CodeValidationError::InvalidTypeIndex(*type_index));
+                };
+                Choice::EitherA(ty.params())
+            }
+            _ => { Choice::OrB(empty()) }
+        })
+    }
+
+    pub(crate) fn results<'a>(&self, function_types: &'a [FunctionType]) -> Result<impl DoubleEndedIterator<Item = ValueType> + 'a, CodeValidationError> {
+        return Ok(match self {
+            BlockType::Empty => { Choice::OrB(None.into_iter()) }
+            BlockType::ValueType(ty) => { Choice::OrB(Some(*ty).into_iter()) }
+            BlockType::TypeIndex(type_index) => {
+                let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
+                    function_type
+                } else {
+                    return Err(CodeValidationError::InvalidTypeIndex(*type_index));
+                };
+                Choice::EitherA(ty.results())
+            }
+        })
+    }
 }
 
 #[derive(Debug)]

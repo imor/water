@@ -7,5 +7,5 @@ mod global;
 mod export;
 mod start;
 mod element;
-mod code;
+pub(crate) mod code;
 mod data;

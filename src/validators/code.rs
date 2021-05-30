@@ -1,6 +1,6 @@
 use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError, BranchReaderError};
-use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex, BlockType, LabelIndex};
-use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable, ValuesAtEndOfBlock, InvalidLabelIndex};
+use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex, BlockType, LabelIndex, Choice};
+use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable, ValuesAtEndOfBlock, InvalidLabelIndex, TargetLabelsTypeMismatch};
 use std::result;
 use crate::readers::section::code::{Code, LocalsReader, LocalsIterationProof};
 use crate::validators::code::Operand::{Unknown, Known};
@@ -21,6 +21,7 @@ pub enum CodeValidationError {
     UndefinedTable,
     InvalidMemoryAlignment,
     TypeMismatch { expected: Operand, actual: Operand },
+    TargetLabelsTypeMismatch,
     ValuesAtEndOfBlock,
     OperandStackEmpty,
 }
@@ -430,84 +431,11 @@ impl CodeValidatorState {
         }
     }
 
-    fn validate_label_types_rev(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
-        match kind {
-            ControlFrameKind::Loop => {
-                match block_type {
-                    BlockType::Empty => {}
-                    BlockType::ValueType(_) => {}
-                    BlockType::TypeIndex(type_index) => {
-                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
-                            function_type
-                        } else {
-                            return Err(InvalidTypeIndex(type_index));
-                        };
-                        for param in ty.params.into_iter().rev() {
-                            self.pop_known(*param)?;
-                        }
-                    }
-                }
-            }
-            _ => {
-                match block_type {
-                    BlockType::Empty => {}
-                    BlockType::ValueType(ty) => {
-                        self.pop_known(ty)?;
-                    }
-                    BlockType::TypeIndex(type_index) => {
-                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
-                            function_type
-                        } else {
-                            return Err(InvalidTypeIndex(type_index));
-                        };
-                        for result in ty.results.into_iter().rev() {
-                            self.pop_known(*result)?;
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn validate_label_types(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &[FunctionType]) -> Result<()> {
-        match kind {
-            ControlFrameKind::Loop => {
-                match block_type {
-                    BlockType::Empty => {}
-                    BlockType::ValueType(_) => {}
-                    BlockType::TypeIndex(type_index) => {
-                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
-                            function_type
-                        } else {
-                            return Err(InvalidTypeIndex(type_index));
-                        };
-                        for param in ty.params.into_iter() {
-                            self.push_known(*param);
-                        }
-                    }
-                }
-            }
-            _ => {
-                match block_type {
-                    BlockType::Empty => {}
-                    BlockType::ValueType(ty) => {
-                        self.push_known(ty);
-                    }
-                    BlockType::TypeIndex(type_index) => {
-                        let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
-                            function_type
-                        } else {
-                            return Err(InvalidTypeIndex(type_index));
-                        };
-                        for result in ty.results.into_iter() {
-                            self.push_known(*result);
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
+    fn get_label_types<'a>(&mut self, kind: ControlFrameKind, block_type: BlockType, function_types: &'a [FunctionType]) -> Result<impl DoubleEndedIterator<Item = ValueType> + 'a> {
+        Ok(match kind {
+            ControlFrameKind::Loop => { Choice::EitherA(block_type.params(function_types)?) }
+            _ => { Choice::OrB(block_type.results(function_types)?) }
+        })
     }
 
     fn validate_instruction(&mut self,
@@ -538,14 +466,20 @@ impl CodeValidatorState {
             }
             Instruction::End => {}
             Instruction::Branch { label_index } => {
-                let (kind, ty) = self.validate_jump(*label_index)?;
-                self.validate_label_types_rev(kind, ty, function_types)?;
+                let (kind, block_type) = self.validate_jump(*label_index)?;
+                for ty in self.get_label_types(kind, block_type, function_types)?.rev() {
+                    self.pop_known(ty)?;
+                }
                 self.unreachable();
             }
             Instruction::BranchIf { label_index } => {
-                let (kind, ty) = self.validate_jump(*label_index)?;
-                self.validate_label_types_rev(kind, ty, function_types)?;
-                self.validate_label_types(kind, ty, function_types)?;
+                let (kind, block_type) = self.validate_jump(*label_index)?;
+                for ty in self.get_label_types(kind, block_type, function_types)?.rev() {
+                    self.pop_known(ty)?;
+                }
+                for ty in self.get_label_types(kind, block_type, function_types)? {
+                    self.push_known(ty);
+                }
                 self.unreachable();
             }
             Instruction::BranchTable { branch_table_reader } => {
@@ -557,13 +491,19 @@ impl CodeValidatorState {
                     let block = self.validate_jump(label_index)?;
                     match label {
                         None => label = Some(block),
-                        Some(_prev) => {
-                            //TODO: compare prev and block types and error out if not same
+                        Some(prev) => {
+                            let a = self.get_label_types(block.0, block.1, function_types)?;
+                            let b = self.get_label_types(prev.0, prev.1, function_types)?;
+                            if a.ne(b) {
+                                return Err(TargetLabelsTypeMismatch);
+                            }
                         }
                     }
                 }
-                let (kind, ty) = label.unwrap();
-                self.validate_label_types_rev(kind, ty, function_types)?;
+                let (kind, block_type) = label.unwrap();
+                for ty in self.get_label_types(kind, block_type, function_types)?.rev() {
+                    self.pop_known(ty)?;
+                }
                 self.unreachable();
             }
             Instruction::Return => {
