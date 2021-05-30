@@ -3,13 +3,13 @@ use crate::readers::binary::Result as BinaryReaderResult;
 use std::result;
 use crate::types::LabelIndex;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct BranchTableReader<'a> {
     reader: BinaryReader<'a>,
     num_labels: u32,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum BranchReaderError {
     BinaryReaderError(BinaryReaderError),
 }

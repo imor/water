@@ -1,4 +1,4 @@
-use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError};
+use crate::{InstructionReader, Instruction, InstructionReaderError, CodeReaderError, BranchReaderError};
 use crate::types::{ValueType, GlobalType, GlobalIndex, LocalIndex, TypeIndex, FuncIndex, Locals, FunctionType, MemoryIndex, MemoryArgument, TableIndex, BlockType, LabelIndex};
 use crate::validators::code::CodeValidationError::{InvalidInitExpr, TypeMismatch, InvalidGlobalIndex, InvalidLocalIndex, InvalidTypeIndex, InvalidFunctionIndex, SettingImmutableGlobal, UndefinedMemory, InvalidMemoryAlignment, OperandStackEmpty, UndefinedTable, ValuesAtEndOfBlock, InvalidLabelIndex};
 use std::result;
@@ -8,8 +8,9 @@ use crate::validators::code::Operand::{Unknown, Known};
 #[derive(PartialEq, Eq, Debug)]
 pub enum CodeValidationError {
     CodeReader(CodeReaderError),
-    InvalidInitExpr,
     InstructionReader(InstructionReaderError),
+    BranchReader(BranchReaderError),
+    InvalidInitExpr,
     InvalidGlobalIndex(GlobalIndex),
     SettingImmutableGlobal(GlobalIndex),
     InvalidLocalIndex(LocalIndex),
@@ -33,6 +34,12 @@ impl From<CodeReaderError> for CodeValidationError {
 impl From<InstructionReaderError> for CodeValidationError {
     fn from(e: InstructionReaderError) -> Self {
         CodeValidationError::InstructionReader(e)
+    }
+}
+
+impl From<BranchReaderError> for CodeValidationError {
+    fn from(e: BranchReaderError) -> Self {
+        CodeValidationError::BranchReader(e)
     }
 }
 
@@ -541,8 +548,23 @@ impl CodeValidatorState {
                 self.validate_label_types(kind, ty, function_types)?;
                 self.unreachable();
             }
-            Instruction::BranchTable { .. } => {
-                self.pop_operand()?;
+            Instruction::BranchTable { branch_table_reader } => {
+                self.pop_known(ValueType::I32)?;
+                let mut reader = branch_table_reader.clone();
+                let mut label = None;
+                for label_index in reader.into_iter() {
+                    let label_index = label_index?;
+                    let block = self.validate_jump(label_index)?;
+                    match label {
+                        None => label = Some(block),
+                        Some(_prev) => {
+                            //TODO: compare prev and block types and error out if not same
+                        }
+                    }
+                }
+                let (kind, ty) = label.unwrap();
+                self.validate_label_types_rev(kind, ty, function_types)?;
+                self.unreachable();
             }
             Instruction::Return => {
                 //TODO:Get rid of the clone
