@@ -491,21 +491,8 @@ impl CodeValidatorState {
                 self.unreachable();
             }
             Instruction::Return => {
-                //TODO:Get rid of the clone
-                match self.control_stack[0].block_type {
-                    BlockType::Empty => {}
-                    BlockType::ValueType(ty) => {
-                        self.pop_known(ty)?;
-                    }
-                    BlockType::TypeIndex(type_index) => {
-                        if let Some(ty) = function_types.get(type_index.0 as usize) {
-                            for param in ty.results.into_iter().rev() {
-                                self.pop_known(*param)?;
-                            }
-                        } else {
-                            return Err(InvalidTypeIndex(type_index));
-                        }
-                    }
+                for ty in self.control_stack[0].block_type.results(function_types)?.rev() {
+                    self.pop_known(ty)?;
                 }
                 self.unreachable();
             }
