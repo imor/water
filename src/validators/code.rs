@@ -290,21 +290,8 @@ impl CodeValidatorState {
         let last = self.control_stack.last().unwrap();
         let height = last.height;
 
-        match last.block_type {
-            BlockType::Empty => {}
-            BlockType::ValueType(ty) => {
-                self.pop_known(ty)?;
-            }
-            BlockType::TypeIndex(type_index) => {
-                let ty = if let Some(function_type) = function_types.get(type_index.0 as usize) {
-                    function_type
-                } else {
-                    return Err(InvalidTypeIndex(type_index));
-                };
-                for param in ty.results.into_iter().rev() {
-                    self.pop_known(*param)?;
-                }
-            }
+        for ty in last.block_type.results(function_types)?.rev() {
+            self.pop_known(ty)?;
         }
 
         if self.operand_stack.len() != height as usize {
