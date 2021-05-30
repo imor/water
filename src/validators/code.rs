@@ -448,7 +448,19 @@ impl CodeValidatorState {
                     _ => { return Err(ElseWithoutIf) }
                 }
             }
-            Instruction::End => {}
+            Instruction::End => {
+                let mut frame = self.pop_control_frame(function_types)?;
+                match frame.kind {
+                    ControlFrameKind::If => {
+                        self.push_control_frame(ControlFrameKind::Else, frame.block_type);
+                        frame = self.pop_control_frame(function_types)?;
+                    }
+                    _ => {}
+                }
+                for ty in frame.block_type.results(function_types)? {
+                    self.push_known(ty);
+                }
+            }
             Instruction::Branch { label_index } => {
                 let (kind, block_type) = self.validate_jump(*label_index)?;
                 for ty in self.get_label_types(kind, block_type, function_types)?.rev() {
